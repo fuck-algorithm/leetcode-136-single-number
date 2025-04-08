@@ -83,13 +83,6 @@ export const renderBinaryRow = (
         // 为结果行添加呼吸发光边框效果
         addBreathingBorder(rect, color, binary.length > 24 ? 0.8 : (binary.length > 16 ? 1.2 : 1.5));
         
-        rect.transition()
-          .duration(500)
-          .attr('transform', 'scale(1.1)')
-          .transition()
-          .duration(500)
-          .attr('transform', 'scale(1)');
-          
         // 添加放射状光效
         const effectRadius = Math.min(20, rectWidth * 1.8);
         addRadialEffect(svg, x, y, color, effectRadius);

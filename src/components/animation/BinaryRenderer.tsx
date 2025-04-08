@@ -284,12 +284,13 @@ const renderBinaryRow = (
       
       // 如果是结果行，添加特殊效果
       if (isResult) {
-        rect.transition()
-          .duration(500)
-          .attr('transform', 'scale(1.1)')
-          .transition()
-          .duration(500)
-          .attr('transform', 'scale(1)');
+        // 移除放大缩小效果
+        // rect.transition()
+        //  .duration(500)
+        //  .attr('transform', 'scale(1.1)')
+        //  .transition()
+        //  .duration(500)
+        //  .attr('transform', 'scale(1)');
           
         // 添加放射状光效
         addRadialEffect(svg, x, y + digitWidth/2, color);
