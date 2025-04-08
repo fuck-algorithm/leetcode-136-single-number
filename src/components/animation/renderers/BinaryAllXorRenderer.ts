@@ -177,8 +177,15 @@ export function renderAllBinaryXorOperation(
     // 收集源位置 - 1的位置
     for (let i = 0; i < binary.length; i++) {
       if (binary[i] === '1') {
+        // 计算与二进制位相同的X坐标，包含右对齐偏移量和spacing/2
+        const spacing = binary.length > 20 
+          ? Math.max(adjustedDigitWidth * 0.9, 8) 
+          : Math.max(adjustedDigitWidth, 10);
+        const alignOffset = maxLength !== undefined ? spacing * (maxLength - binary.length) : 0;
+        const xPos = startX + alignOffset + i * spacing + spacing / 2;
+        
         sourcePositions.push({
-          x: startX + i * adjustedDigitWidth + adjustedDigitWidth / 2,
+          x: xPos,
           y: rowCenterY, // 使用同一个中心坐标
           value: '1',
           color: color
@@ -365,8 +372,15 @@ export function renderAllBinaryXorOperation(
   // 为结果创建目标位置 - 结果中1的位置
   for (let i = 0; i < resultBinary.length; i++) {
     if (resultBinary[i] === '1') {
+      // 计算与二进制位相同的X坐标，确保与源位置计算一致
+      const spacing = resultBinary.length > 20 
+        ? Math.max(adjustedDigitWidth * 0.9, 8) 
+        : Math.max(adjustedDigitWidth, 10);
+      const alignOffset = maxLength !== undefined ? spacing * (maxLength - resultBinary.length) : 0;
+      const xPos = startX + alignOffset + i * spacing + spacing / 2;
+      
       targetPositions.push({
-        x: startX + i * adjustedDigitWidth + adjustedDigitWidth / 2,
+        x: xPos,
         y: resultCenterY // 使用中心坐标
       });
     }
@@ -400,6 +414,12 @@ export function renderAllBinaryXorOperation(
   // 使用动画
   const animate = true;
   if (animate) {
+    // 调试打印
+    console.log("动画准备:", {
+      sourcePositions: sourcePositions.length,
+      targetPositions: targetPositions.length,
+    });
+    
     createMeteorAnimation(
       svg,
       sourcePositions,
@@ -408,6 +428,7 @@ export function renderAllBinaryXorOperation(
       adjustedDigitWidth,
       '#40c057',
       () => {
+        console.log("动画完成回调被调用");
         // 仅在动画完成后渲染结果
         renderBinaryRow(
           svg,
