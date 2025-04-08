@@ -1,0 +1,124 @@
+.visualizer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 15px;
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
+  font-family: 'Arial', sans-serif;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.problem-description {
+  width: 100%;
+  margin-bottom: 15px;
+  text-align: left;
+  overflow-y: auto;
+  flex-shrink: 0;
+  max-height: 45%;
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.problem-description h2 {
+  color: #333;
+  border-bottom: 2px solid #4dabf7;
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+  font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+}
+
+.problem-description p {
+  line-height: 1.6;
+  color: #333;
+  font-size: clamp(15px, 2vw, 18px);
+  margin-bottom: 12px;
+}
+
+.result {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid #4dabf7;
+  margin-top: 15px;
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.result h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: clamp(18px, 2.5vw, 22px);
+}
+
+.result p {
+  font-size: clamp(15px, 2vw, 18px);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.highlight {
+  color: #ff6b6b;
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+/* 响应式设计 - 小屏幕 */
+@media (max-width: 767px) {
+  .visualizer {
+    padding: 10px;
+  }
+  
+  .problem-description {
+    margin-bottom: 10px;
+    padding: 10px;
+    max-height: 50%;
+  }
+  
+  .problem-description h2 {
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+  }
+  
+  .problem-description p {
+    margin-bottom: 8px;
+  }
+  
+  .result {
+    padding: 10px;
+    margin-top: 10px;
+  }
+}
+
+/* 横屏适配 */
+@media (max-height: 600px) and (orientation: landscape) {
+  .visualizer {
+    padding: 8px;
+  }
+  
+  .problem-description {
+    margin-bottom: 8px;
+    padding: 8px;
+    max-height: 40vh;
+  }
+  
+  .problem-description h2 {
+    padding-bottom: 3px;
+    margin-bottom: 5px;
+  }
+  
+  .problem-description p {
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+  
+  .result {
+    padding: 8px;
+    margin-top: 8px;
+  }
+} 
