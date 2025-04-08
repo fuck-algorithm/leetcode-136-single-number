@@ -167,6 +167,14 @@ export function renderAllBinaryXorOperation(
   // 创建映射以跟踪每个数字对已使用的垂直偏移量
   const numberOffsetMap = new Map<number, number[]>();
   
+  // 用于跟踪已经创建的连接线方向
+  const connectionDirections: Array<{
+    y1: number,
+    y2: number,
+    direction: 'left' | 'right',
+    curvature: number
+  }> = [];
+  
   // 绘制相同数字之间的连接线
   numberRowMap.forEach((rowIndices, num) => {
     // 仅对出现偶数次的数字进行两两配对
@@ -214,15 +222,64 @@ export function renderAllBinaryXorOperation(
       const connectorX1 = leftX1 - offset;
       const connectorX2 = leftX2 - offset;
       
-      // 计算控制点，使曲线更自然
+      // 计算垂直距离和索引差异
       const verticalDistance = Math.abs(y2 - y1);
-      const controlPointOffset = Math.min(verticalDistance * 0.4, 60); // 根据垂直距离动态计算，但设置上限
+      
+      // 确定线条弯曲方向 - 检查现有线条，尽量避免交叉
+      // 计算该连线可能与其他线交叉的概率
+      let direction: 'left' | 'right' = 'left'; // 默认向左弯曲
+      let crossingCountLeft = 0;
+      let crossingCountRight = 0;
+      
+      // 检查现有的连接线，评估向左或向右弯曲哪个会导致更少的交叉
+      connectionDirections.forEach(conn => {
+        // 如果连线的y范围有重叠
+        const overlapsVertically = (
+          (y1 >= conn.y1 && y1 <= conn.y2) || 
+          (y2 >= conn.y1 && y2 <= conn.y2) ||
+          (conn.y1 >= y1 && conn.y1 <= y2) ||
+          (conn.y2 >= y1 && conn.y2 <= y2)
+        );
+        
+        if (overlapsVertically) {
+          // 检查向左弯曲是否与该线交叉
+          if (conn.direction === 'left') {
+            crossingCountLeft++;
+          } else {
+            crossingCountRight++;
+          }
+        }
+      });
+      
+      // 选择交叉较少的方向
+      direction = crossingCountLeft <= crossingCountRight ? 'left' : 'right';
+      
+      // 根据垂直距离和行索引计算曲率 - 距离越大曲率越小，保持优雅
+      // 基本曲率在0.15-0.6范围内变化
+      const baseCurvature = Math.min(0.6, Math.max(0.15, 1 / (verticalDistance / 100 + 1)));
+      
+      // 根据位置略微变化曲率以避免重叠
+      // 使用行号的模作为随机因子
+      const rowVariance = ((row1 + row2) % 5) / 10; // -0.2到0.2的变化
+      const curvature = baseCurvature + rowVariance;
+      
+      // 记录这条连接线的信息
+      connectionDirections.push({
+        y1: Math.min(y1, y2),
+        y2: Math.max(y1, y2),
+        direction,
+        curvature
+      });
+      
+      // 根据方向计算控制点偏移
+      const controlPointOffset = verticalDistance * curvature;
+      const directionMultiplier = direction === 'left' ? -1 : 1;
       
       // 计算两个控制点，使曲线更平滑
-      const controlX1 = connectorX1 - controlPointOffset;
+      const controlX1 = connectorX1 + (controlPointOffset * directionMultiplier);
       const controlY1 = y1 + (y2 - y1) / 4; // 第一个控制点位于曲线1/4处
       
-      const controlX2 = connectorX2 - controlPointOffset;
+      const controlX2 = connectorX2 + (controlPointOffset * directionMultiplier);
       const controlY2 = y1 + 3 * (y2 - y1) / 4; // 第二个控制点位于曲线3/4处
       
       // 创建路径 - 使用贝塞尔曲线使连线更平滑
