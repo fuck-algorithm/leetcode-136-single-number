@@ -141,7 +141,7 @@ export const renderBinaryRow = (
 };
 
 /**
- * 创建流星动画效果
+ * 创建流星动画效果 - 改进版
  * @param svg D3 SVG选择器
  * @param sourcePositions 源位置（起点）数组
  * @param targetPositions 目标位置（终点）数组
@@ -186,119 +186,178 @@ export const createMeteorAnimation = (
     .attr('stop-opacity', 1);
 
   gradient.append('stop')
-    .attr('offset', '60%')
+    .attr('offset', '50%')
     .attr('stop-color', resultColor)
-    .attr('stop-opacity', 0.8);
+    .attr('stop-opacity', 0.7);
 
   gradient.append('stop')
     .attr('offset', '100%')
     .attr('stop-color', resultColor)
     .attr('stop-opacity', 0);
 
-  // 计算元素尺寸
-  const meteorWidth = digitWidth * 0.8;
-  const meteorHeadHeight = digitWidth * 0.8;
-  const meteorTailHeight = digitWidth * 3;
-
   // 创建计数器跟踪完成的动画数量
   let completedAnimations = 0;
   const totalAnimations = Math.min(sourcePositions.length, targetPositions.length);
-
+  
   // 为每个位创建流星动画
   sourcePositions.forEach((source, i) => {
     if (i >= targetPositions.length) return;
-
     const target = targetPositions[i];
-    const delay = Math.random() * 300; // 随机延迟让动画看起来更自然
     
-    // 只为值为1的位创建动画
+    // 只为值为1的位创建完整动画
     const isOne = source.value === '1';
+    
+    // 计算动画参数
+    const delay = Math.min(i * 20, 300); // 稍微错开动画开始时间
+    const distance = Math.sqrt(Math.pow(target.x - source.x, 2) + Math.pow(target.y - source.y, 2));
+    const actualDuration = Math.min(duration, Math.max(500, distance * 1.5)); // 根据距离调整实际动画时间
     
     // 创建流星组
     const meteorGroup = svg.append('g')
       .attr('class', 'meteor')
       .style('opacity', 0);
-      
+    
+    // 计算流星头部大小
+    const meteorSize = Math.max(digitWidth * 0.6, 8); // 流星大小
+    const tailLength = isOne ? meteorSize * 4 : meteorSize * 2; // 尾巴长度
+    
+    // 计算流星轨迹：添加弧线效果
+    // 获取控制点，在源和目标之间的中点上方或下方
+    const midX = (source.x + target.x) / 2;
+    const midY = (source.y + target.y) / 2;
+    // 向上偏移一个随机量，添加曲线效果
+    const offsetY = (source.y < target.y) ? -distance / 3 : distance / 3;
+    const controlX = midX;
+    const controlY = midY + offsetY * (Math.random() * 0.4 + 0.8); // 随机化曲线程度
+    
+    // 为二次贝塞尔曲线计算路径点
+    const numPoints = 100; // 路径点数量
+    const pathPoints: { x: number, y: number }[] = [];
+    
+    for (let t = 0; t <= 1; t += 1/numPoints) {
+      // 二次贝塞尔曲线公式: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+      const x = Math.pow(1-t, 2) * source.x + 2 * (1-t) * t * controlX + Math.pow(t, 2) * target.x;
+      const y = Math.pow(1-t, 2) * source.y + 2 * (1-t) * t * controlY + Math.pow(t, 2) * target.y;
+      pathPoints.push({ x, y });
+    }
+    
     // 创建流星头部（圆形）
     const meteorHead = meteorGroup.append('circle')
       .attr('cx', source.x)
-      .attr('cy', source.y - meteorHeadHeight / 2)
-      .attr('r', meteorWidth / 2)
+      .attr('cy', source.y)
+      .attr('r', meteorSize / 2)
       .attr('fill', isOne ? resultColor : '#adb5bd');
-      
+    
+    // 创建流星尾巴
+    let meteorTail: d3.Selection<SVGPathElement, unknown, null, undefined> | undefined;
+    
+    if (isOne) {
+      // 使用路径而不是矩形，让尾巴能沿曲线
+      meteorTail = meteorGroup.append('path')
+        .attr('d', `M ${source.x} ${source.y} L ${source.x} ${source.y}`) // 初始状态为一个点
+        .attr('stroke', `url(#${gradientId})`)
+        .attr('stroke-width', meteorSize)
+        .attr('stroke-linecap', 'round')
+        .attr('fill', 'none');
+    }
+    
     // 在流星头部添加数字
     const meteorText = meteorGroup.append('text')
       .attr('x', source.x)
-      .attr('y', source.y - meteorHeadHeight / 2 + 1)
+      .attr('y', source.y)
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'middle')
-      .attr('font-size', digitWidth * 0.7)
-      .attr('font-family', 'monospace')
+      .attr('font-size', Math.max(10, digitWidth * 0.7))
       .attr('font-weight', 'bold')
       .attr('fill', 'white')
       .text(source.value);
-      
-    // 为值为1的位创建流星尾巴
-    let meteorTail: d3.Selection<SVGRectElement, unknown, null, undefined> | undefined;
-    if (isOne) {
-      meteorTail = meteorGroup.append('rect')
-        .attr('x', source.x - meteorWidth / 2)
-        .attr('y', source.y - meteorHeadHeight - meteorTailHeight)
-        .attr('width', meteorWidth)
-        .attr('height', meteorTailHeight)
-        .attr('fill', `url(#${gradientId})`);
-    }
     
     // 显示流星
     meteorGroup.transition()
       .duration(100)
       .style('opacity', 1)
       .on('end', () => {
-        // 动画流星从起点到终点
-        const pathLength = Math.abs(target.y - source.y);
-        const animDuration = duration * (pathLength / 500); // 根据距离调整动画时间
+        // 使用自定义计时器执行动画
+        let start: number | null = null;
+        let previousTimestamp: number | null = null;
+        let tailPoints: {x: number, y: number}[] = [];
+        const maxTailPoints = 10; // 尾巴的最大点数
         
-        // 执行动画
-        meteorHead.transition()
-          .delay(delay)
-          .duration(animDuration)
-          .attr('cy', target.y)
-          .ease(d3.easeQuadIn);
+        function step(timestamp: number) {
+          if (!start) start = timestamp;
           
-        meteorText.transition()
-          .delay(delay)
-          .duration(animDuration)
-          .attr('y', target.y + 1)
-          .ease(d3.easeQuadIn);
+          // 计算动画进度 (0-1)
+          const elapsed = timestamp - start;
+          const progress = Math.min(1, elapsed / actualDuration);
           
-        if (isOne && meteorTail) {
-          meteorTail.transition()
-            .delay(delay)
-            .duration(animDuration)
-            .attr('y', target.y - meteorTailHeight)
-            .ease(d3.easeQuadIn);
+          // 获取当前路径点
+          const currentIndex = Math.min(Math.floor(progress * (pathPoints.length - 1)), pathPoints.length - 1);
+          const currentPoint = pathPoints[currentIndex];
+          
+          // 更新流星头部位置
+          meteorHead
+            .attr('cx', currentPoint.x)
+            .attr('cy', currentPoint.y);
+            
+          // 更新文本位置
+          meteorText
+            .attr('x', currentPoint.x)
+            .attr('y', currentPoint.y);
+          
+          // 更新尾巴 (仅对值为1的位)
+          if (isOne && meteorTail) {
+            // 添加当前点到尾巴点数组
+            tailPoints.unshift(currentPoint);
+            
+            // 限制尾巴长度
+            if (tailPoints.length > maxTailPoints) {
+              tailPoints = tailPoints.slice(0, maxTailPoints);
+            }
+            
+            // 如果有足够的点，绘制尾巴路径
+            if (tailPoints.length > 1) {
+              const tailPath = `M ${currentPoint.x} ${currentPoint.y}`;
+              const tailCurve = tailPoints.map((p, i) => {
+                // 根据点在尾巴中的位置计算透明度
+                const opacity = 1 - (i / tailPoints.length);
+                // 返回带有透明度的路径点
+                return `L ${p.x} ${p.y}`;
+              }).join(' ');
+              
+              meteorTail.attr('d', tailPath + ' ' + tailCurve);
+            }
+          }
+          
+          // 如果动画未完成，继续下一帧
+          if (progress < 1) {
+            previousTimestamp = timestamp;
+            requestAnimationFrame(step);
+          } else {
+            // 动画完成，淡出流星
+            meteorGroup.transition()
+              .duration(200)
+              .style('opacity', 0)
+              .on('end', () => {
+                // 移除流星元素
+                meteorGroup.remove();
+                
+                // 增加计数器并检查是否完成所有动画
+                completedAnimations++;
+                if (completedAnimations >= totalAnimations && onComplete) {
+                  setTimeout(onComplete, 100);
+                }
+              });
+          }
         }
         
-        // 添加最后一个过渡来完成动画
-        meteorHead.transition()
-          .delay(delay + animDuration)
-          .duration(200)
-          .style('opacity', 0)
-          .on('end', () => {
-            // 删除流星元素
-            meteorGroup.remove();
-            
-            // 增加计数器并检查是否完成所有动画
-            completedAnimations++;
-            if (completedAnimations >= totalAnimations && onComplete) {
-              // 所有动画完成后调用回调
-              setTimeout(onComplete, 100);
-            }
-          });
+        // 开始动画循环
+        setTimeout(() => {
+          requestAnimationFrame(step);
+        }, delay);
       });
   });
   
-  // 如果没有动画要执行（如空数组），则立即调用完成回调
+  // 如果没有动画要执行，则立即调用完成回调
   if (totalAnimations === 0 && onComplete) {
     onComplete();
   }
