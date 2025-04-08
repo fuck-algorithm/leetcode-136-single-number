@@ -86,18 +86,19 @@ export const AnimationRenderer: React.FC<AnimationRendererProps> = ({
   return (
     <svg 
       ref={svgRef}
-      width={width}
-      height={height}
+      width="100%"
+      height="100%"
       viewBox={`0 0 ${width} ${height}`}
       style={{ 
         width: '100%', 
         height: '100%',
-        overflow: 'hidden', // 防止内容溢出
-        marginRight: 0, // 移除边距
+        overflow: 'visible', // 改为visible允许内容超出区域显示
+        margin: 0, // 移除所有边距
+        padding: 0, // 确保无padding
         display: 'block', // 使用块级元素
-        margin: '0 auto' // 水平居中
+        maxWidth: '100%' // 确保不超过父容器宽度
       }}
-      preserveAspectRatio="xMidYMid meet" // 中心对齐
+      preserveAspectRatio="xMinYMid meet" // 左对齐而不是中心对齐
     />
   );
 };

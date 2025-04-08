@@ -196,17 +196,7 @@ export function renderAllBinaryXorOperation(
     const color = numberColorMap.get(singleNumber.num) || '#228be6';
     const singleLineX = 50; // 与连线X坐标保持一致
     
-    // 添加特殊标记，指示这是唯一的数字
-    lineGroup.append('text')
-      .attr('x', singleLineX - 5)
-      .attr('y', singleNumber.y)
-      .attr('dominant-baseline', 'middle')
-      .attr('text-anchor', 'end')
-      .attr('fill', color)
-      .attr('font-weight', 'bold')
-      .attr('font-size', '14px')
-      .text('唯一');
-    
+    // 不显示文本标记，只保留高亮指示器
     // 添加高亮指示器
     const highlight = lineGroup.append('circle')
       .attr('cx', singleLineX)

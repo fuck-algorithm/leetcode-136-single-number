@@ -29,7 +29,7 @@ const SingleNumberControlledAnimation: React.FC<SingleNumberControlledAnimationP
           currentFrame={currentFrame}
           totalFrames={totalFrames}
           result={result}
-          width={800}
+          width={1000}
           height={600}
         />
       </div>
