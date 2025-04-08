@@ -1,54 +1,57 @@
-# React + TypeScript + Vite
+# LeetCode 136: 只出现一次的数字 - 可视化解决方案
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 项目介绍
 
-Currently, two official plugins are available:
+这是LeetCode第136题"只出现一次的数字"的交互式可视化解决方案。该题目要求在一个非空整数数组中找出只出现一次的元素，其余每个元素均出现两次。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 在线演示
 
-## Expanding the ESLint configuration
+**[点击这里查看在线演示](https://fuck-algorithm.github.io/leetcode-136-single-number/)**
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 算法思路
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+本项目通过动画可视化展示了使用异或(XOR)操作解决此问题的过程：
+
+- 相同的数字进行XOR操作会得到0
+- 任何数字与0进行XOR操作会得到该数字本身
+- 因此，对数组中所有元素进行XOR操作，最终结果就是只出现一次的数字
+
+## 技术栈
+
+- React 19
+- TypeScript
+- Vite
+- D3.js (数据可视化)
+- GSAP (动画效果)
+
+## 本地运行
+
+```bash
+# 克隆仓库
+git clone https://github.com/fuck-algorithm/leetcode-136-single-number.git
+cd leetcode-136-single-number
+
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 构建生产版本
+npm run build
+
+# 本地预览生产版本
+npm run preview
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 部署
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+本项目使用GitHub Pages部署。运行以下命令进行部署：
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+```bash
+npm run deploy
 ```
+
+## 许可证
+
+MIT
