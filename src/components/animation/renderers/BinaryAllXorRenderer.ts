@@ -225,34 +225,8 @@ export function renderAllBinaryXorOperation(
       // 计算垂直距离和索引差异
       const verticalDistance = Math.abs(y2 - y1);
       
-      // 确定线条弯曲方向 - 检查现有线条，尽量避免交叉
-      // 计算该连线可能与其他线交叉的概率
-      let direction: 'left' | 'right' = 'left'; // 默认向左弯曲
-      let crossingCountLeft = 0;
-      let crossingCountRight = 0;
-      
-      // 检查现有的连接线，评估向左或向右弯曲哪个会导致更少的交叉
-      connectionDirections.forEach(conn => {
-        // 如果连线的y范围有重叠
-        const overlapsVertically = (
-          (y1 >= conn.y1 && y1 <= conn.y2) || 
-          (y2 >= conn.y1 && y2 <= conn.y2) ||
-          (conn.y1 >= y1 && conn.y1 <= y2) ||
-          (conn.y2 >= y1 && conn.y2 <= y2)
-        );
-        
-        if (overlapsVertically) {
-          // 检查向左弯曲是否与该线交叉
-          if (conn.direction === 'left') {
-            crossingCountLeft++;
-          } else {
-            crossingCountRight++;
-          }
-        }
-      });
-      
-      // 选择交叉较少的方向
-      direction = crossingCountLeft <= crossingCountRight ? 'left' : 'right';
+      // 固定方向为左侧，避免向右弯曲遮挡数字
+      const direction: 'left' | 'right' = 'left';
       
       // 根据垂直距离和行索引计算曲率 - 距离越大曲率越小，保持优雅
       // 基本曲率在0.15-0.6范围内变化
@@ -260,7 +234,7 @@ export function renderAllBinaryXorOperation(
       
       // 根据位置略微变化曲率以避免重叠
       // 使用行号的模作为随机因子
-      const rowVariance = ((row1 + row2) % 5) / 10; // -0.2到0.2的变化
+      const rowVariance = ((row1 + row2) % 7) / 10; // -0.3到0.3的变化，增大变化范围
       const curvature = baseCurvature + rowVariance;
       
       // 记录这条连接线的信息
@@ -273,7 +247,8 @@ export function renderAllBinaryXorOperation(
       
       // 根据方向计算控制点偏移
       const controlPointOffset = verticalDistance * curvature;
-      const directionMultiplier = direction === 'left' ? -1 : 1;
+      // 方向固定为左侧
+      const directionMultiplier = -1; // 始终向左弯曲
       
       // 计算两个控制点，使曲线更平滑
       const controlX1 = connectorX1 + (controlPointOffset * directionMultiplier);
