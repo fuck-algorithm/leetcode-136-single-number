@@ -41,14 +41,21 @@ export function renderAllBinaryXorOperation(
   const totalHeight = totalInputHeight + extraSpaceForResult;
   svg.attr('viewBox', `0 0 ${width} ${totalHeight}`);
   
+  // 计算左右边距和标签位置，使内容居中
+  const leftLabelWidth = 100; // 增加左侧标签所需宽度
+  const rightMargin = 30; // 右侧边距
+  
+  // 计算整个内容的宽度，包括标签和二进制表示
+  const contentWidth = width - leftLabelWidth - rightMargin;
+  
   // 调整数字宽度以适应屏幕
   const adjustedDigitWidth = Math.min(
     digitWidth,
-    (width - 60) / maxLength
+    contentWidth / maxLength
   );
   
-  // 二进制显示的起始X坐标
-  const startX = (width - adjustedDigitWidth * maxLength) / 2;
+  // 确保整个内容居中
+  const startX = leftLabelWidth + (contentWidth - adjustedDigitWidth * maxLength) / 2;
   
   // 创建数字到颜色的映射，相同数字使用相同颜色
   const numberColorMap = new Map<number, string>();
@@ -63,7 +70,9 @@ export function renderAllBinaryXorOperation(
   
   // 渲染输入的二进制表示
   binaryStrings.forEach((binary, index) => {
-    const y = index * (rowHeight + verticalSpacing);
+    // 计算每行的中心Y坐标 - 用于对齐所有元素
+    const rowCenterY = index * (rowHeight + verticalSpacing) + rowHeight / 2;
+    
     // 获取当前数字对应的颜色
     const color = numberColorMap.get(numbers[index]) || '#228be6'; // 默认蓝色
     
@@ -72,16 +81,17 @@ export function renderAllBinaryXorOperation(
       svg,
       binary,
       startX,
-      y,
+      rowCenterY, // 使用中心坐标
       adjustedDigitWidth,
       color,
       false,
       false
     );
     
-    // 如果需要显示十进制值
+    // 显示十进制值 - 确保与二进制方格垂直对齐
     if (showDecimal) {
-      addDecimalLabel(svg, numbers[index], startX - 5, y, color, rowHeight);
+      // 直接使用当前行的中心Y坐标 - 确保完全水平对齐
+      renderNumberLabel(svg, numbers[index], startX - 10, rowCenterY, color);
     }
     
     // 收集源位置 - 1的位置
@@ -89,7 +99,7 @@ export function renderAllBinaryXorOperation(
       if (binary[i] === '1') {
         sourcePositions.push({
           x: startX + i * adjustedDigitWidth + adjustedDigitWidth / 2,
-          y: y + rowHeight / 2,
+          y: rowCenterY, // 使用同一个中心坐标
           value: '1',
           color: color
         });
@@ -97,33 +107,35 @@ export function renderAllBinaryXorOperation(
     }
   });
   
-  // 结果行的Y坐标
+  // 结果行的Y坐标 - 也使用中心点计算
   const resultY = totalInputHeight;
+  const resultCenterY = resultY + rowHeight / 2;
   
   // 为结果创建目标位置 - 结果中1的位置
   for (let i = 0; i < resultBinary.length; i++) {
     if (resultBinary[i] === '1') {
       targetPositions.push({
         x: startX + i * adjustedDigitWidth + adjustedDigitWidth / 2,
-        y: resultY + rowHeight / 2
+        y: resultCenterY // 使用中心坐标
       });
     }
   }
   
-  // 添加"Result:"标签
+  // 添加"Result:"标签 - 与结果行垂直对齐
   svg
     .append('text')
-    .attr('x', startX - 5)
-    .attr('y', resultY + rowHeight / 2)
-    .attr('dominant-baseline', 'middle')
+    .attr('x', 50) // 固定在左侧位置
+    .attr('y', resultCenterY) // 使用结果行的中心Y坐标
+    .attr('dominant-baseline', 'middle') // 确保垂直居中
+    .attr('text-anchor', 'end') // 水平右对齐
     .attr('fill', '#40c057')
-    .attr('text-anchor', 'end')
     .text('Result:');
   
-  // 显示十进制结果值
+  // 显示十进制结果值 - 与结果行垂直对齐
   if (showDecimal) {
     const result = numbers.reduce((acc, curr) => acc ^ curr, 0);
-    addDecimalLabel(svg, result, startX - 5, resultY, '#40c057', rowHeight);
+    // 将数值放在标签右侧的固定位置
+    renderNumberLabel(svg, result, 90, resultCenterY, '#40c057');
   }
   
   // 使用动画
@@ -142,7 +154,7 @@ export function renderAllBinaryXorOperation(
           svg,
           resultBinary,
           startX,
-          resultY,
+          resultCenterY, // 使用中心坐标
           adjustedDigitWidth,
           '#40c057',
           false,
@@ -156,7 +168,7 @@ export function renderAllBinaryXorOperation(
       svg,
       resultBinary,
       startX,
-      resultY,
+      resultCenterY, // 使用中心坐标
       adjustedDigitWidth,
       '#40c057',
       false,
@@ -165,33 +177,32 @@ export function renderAllBinaryXorOperation(
   }
 }
 
-// 添加十进制标签的辅助函数
-function addDecimalLabel(
+// 新函数：渲染数字标签 - 简化标签渲染逻辑并确保对齐
+function renderNumberLabel(
   svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
   value: number,
   x: number,
-  y: number,
-  color: string,
-  rowHeight: number = 30
+  y: number, // 直接使用中心Y坐标
+  color: string
 ): void {
-  // 根据rowHeight计算合适的字体大小
-  const fontSize = Math.max(Math.min(rowHeight * 0.6, 14), 10);
+  // 转换为十进制字符串
+  const displayValue = value.toString();
   
-  // 处理大数值的显示
-  let displayValue: string | number = value;
-  if (value > 9999) {
-    displayValue = value.toExponential(2);
+  // 根据数字长度动态计算字体大小
+  let fontSize = 14; // 默认字体大小
+  if (displayValue.length > 8) {
+    fontSize = Math.max(14 - (displayValue.length - 8) * 0.5, 7);
   }
   
   svg
     .append('text')
     .attr('x', x)
-    .attr('y', y + rowHeight / 2)
+    .attr('y', y) // 直接使用传入的中心Y坐标
     .attr('font-size', `${fontSize}px`)
-    .attr('dominant-baseline', 'middle')
+    .attr('dominant-baseline', 'middle') // 确保垂直居中
+    .attr('text-anchor', 'end') // 右对齐
     .attr('fill', color)
-    .attr('text-anchor', 'end')
-    .text(String(displayValue));
+    .text(displayValue);
 }
 
 /**
@@ -281,7 +292,14 @@ const createParticleEffect = (
 
 // 添加convertToBinary函数
 function convertToBinary(n: number): string {
-  return n.toString(2).padStart(8, '0');
+  // 获取数字的二进制表示
+  // 对于负数，使用无符号右移0位操作，强制转换为32位无符号整数表示
+  // 这样可以得到正确的二进制补码表示，不会有负号出现
+  const binary = (n >>> 0).toString(2);
+  
+  // 确保二进制位数至少为32位或与当前最长的二进制位数一致
+  // 这样所有数字都能完整显示所有有效位
+  return binary.padStart(Math.max(32, binary.length), '0');
 }
 
 // 添加createMeteorAnimation函数
