@@ -141,7 +141,7 @@ export const renderBinaryRow = (
 };
 
 /**
- * 创建流星动画效果 - 改进版
+ * 创建垂直砸落动画效果
  * @param svg D3 SVG选择器
  * @param sourcePositions 源位置（起点）数组
  * @param targetPositions 目标位置（终点）数组
@@ -204,13 +204,16 @@ export const createMeteorAnimation = (
     if (i >= targetPositions.length) return;
     const target = targetPositions[i];
     
+    // 计算X坐标：应该与目标X坐标相同（确保垂直下落）
+    const dropX = target.x;
+    
     // 只为值为1的位创建完整动画
     const isOne = source.value === '1';
     
     // 计算动画参数
-    const delay = Math.min(i * 20, 300); // 稍微错开动画开始时间
-    const distance = Math.sqrt(Math.pow(target.x - source.x, 2) + Math.pow(target.y - source.y, 2));
-    const actualDuration = Math.min(duration, Math.max(500, distance * 1.5)); // 根据距离调整实际动画时间
+    const delay = Math.min(i * 50, 400); // 稍微错开动画开始时间
+    const distance = Math.abs(target.y - source.y);
+    const actualDuration = Math.min(duration, Math.max(500, distance)); // 根据距离调整实际动画时间
     
     // 创建流星组
     const meteorGroup = svg.append('g')
@@ -218,52 +221,29 @@ export const createMeteorAnimation = (
       .style('opacity', 0);
     
     // 计算流星头部大小
-    const meteorSize = Math.max(digitWidth * 0.6, 8); // 流星大小
-    const tailLength = isOne ? meteorSize * 4 : meteorSize * 2; // 尾巴长度
-    
-    // 计算流星轨迹：添加弧线效果
-    // 获取控制点，在源和目标之间的中点上方或下方
-    const midX = (source.x + target.x) / 2;
-    const midY = (source.y + target.y) / 2;
-    // 向上偏移一个随机量，添加曲线效果
-    const offsetY = (source.y < target.y) ? -distance / 3 : distance / 3;
-    const controlX = midX;
-    const controlY = midY + offsetY * (Math.random() * 0.4 + 0.8); // 随机化曲线程度
-    
-    // 为二次贝塞尔曲线计算路径点
-    const numPoints = 100; // 路径点数量
-    const pathPoints: { x: number, y: number }[] = [];
-    
-    for (let t = 0; t <= 1; t += 1/numPoints) {
-      // 二次贝塞尔曲线公式: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
-      const x = Math.pow(1-t, 2) * source.x + 2 * (1-t) * t * controlX + Math.pow(t, 2) * target.x;
-      const y = Math.pow(1-t, 2) * source.y + 2 * (1-t) * t * controlY + Math.pow(t, 2) * target.y;
-      pathPoints.push({ x, y });
-    }
+    const meteorSize = Math.max(digitWidth * 0.6, 8); 
     
     // 创建流星头部（圆形）
     const meteorHead = meteorGroup.append('circle')
-      .attr('cx', source.x)
+      .attr('cx', dropX)
       .attr('cy', source.y)
       .attr('r', meteorSize / 2)
       .attr('fill', isOne ? resultColor : '#adb5bd');
     
-    // 创建流星尾巴
+    // 创建流星尾巴（垂直向上）
     let meteorTail: d3.Selection<SVGPathElement, unknown, null, undefined> | undefined;
-    
     if (isOne) {
-      // 使用路径而不是矩形，让尾巴能沿曲线
       meteorTail = meteorGroup.append('path')
-        .attr('d', `M ${source.x} ${source.y} L ${source.x} ${source.y}`) // 初始状态为一个点
+        .attr('d', `M ${dropX} ${source.y} L ${dropX} ${source.y - meteorSize * 3}`)
         .attr('stroke', `url(#${gradientId})`)
-        .attr('stroke-width', meteorSize)
+        .attr('stroke-width', meteorSize * 0.8)
         .attr('stroke-linecap', 'round')
         .attr('fill', 'none');
     }
     
     // 在流星头部添加数字
     const meteorText = meteorGroup.append('text')
-      .attr('x', source.x)
+      .attr('x', dropX)
       .attr('y', source.y)
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'middle')
@@ -271,6 +251,10 @@ export const createMeteorAnimation = (
       .attr('font-weight', 'bold')
       .attr('fill', 'white')
       .text(source.value);
+    
+    // 创建粒子容器
+    const particleGroup = meteorGroup.append('g')
+      .attr('class', 'particles');
     
     // 显示流星
     meteorGroup.transition()
@@ -280,52 +264,39 @@ export const createMeteorAnimation = (
         // 使用自定义计时器执行动画
         let start: number | null = null;
         let previousTimestamp: number | null = null;
-        let tailPoints: {x: number, y: number}[] = [];
-        const maxTailPoints = 10; // 尾巴的最大点数
         
         function step(timestamp: number) {
           if (!start) start = timestamp;
           
           // 计算动画进度 (0-1)
           const elapsed = timestamp - start;
-          const progress = Math.min(1, elapsed / actualDuration);
+          let progress = Math.min(1, elapsed / actualDuration);
           
-          // 获取当前路径点
-          const currentIndex = Math.min(Math.floor(progress * (pathPoints.length - 1)), pathPoints.length - 1);
-          const currentPoint = pathPoints[currentIndex];
+          // 使用缓动函数模拟重力加速度 - 开始慢，结束快
+          // 使用基于物理的二次方程：d = 1/2 * g * t^2
+          const easedProgress = progress * progress;
+          
+          // 计算当前Y位置（垂直下落）
+          const currentY = source.y + (target.y - source.y) * easedProgress;
           
           // 更新流星头部位置
           meteorHead
-            .attr('cx', currentPoint.x)
-            .attr('cy', currentPoint.y);
+            .attr('cy', currentY);
             
           // 更新文本位置
           meteorText
-            .attr('x', currentPoint.x)
-            .attr('y', currentPoint.y);
+            .attr('y', currentY);
           
           // 更新尾巴 (仅对值为1的位)
           if (isOne && meteorTail) {
-            // 添加当前点到尾巴点数组
-            tailPoints.unshift(currentPoint);
-            
-            // 限制尾巴长度
-            if (tailPoints.length > maxTailPoints) {
-              tailPoints = tailPoints.slice(0, maxTailPoints);
-            }
-            
-            // 如果有足够的点，绘制尾巴路径
-            if (tailPoints.length > 1) {
-              const tailPath = `M ${currentPoint.x} ${currentPoint.y}`;
-              const tailCurve = tailPoints.map((p, i) => {
-                // 根据点在尾巴中的位置计算透明度
-                const opacity = 1 - (i / tailPoints.length);
-                // 返回带有透明度的路径点
-                return `L ${p.x} ${p.y}`;
-              }).join(' ');
-              
-              meteorTail.attr('d', tailPath + ' ' + tailCurve);
-            }
+            // 尾巴始终在头部上方，长度随速度增加
+            const tailLength = meteorSize * 3 * (1 + progress);
+            meteorTail.attr('d', `M ${dropX} ${currentY} L ${dropX} ${currentY - tailLength}`);
+          }
+          
+          // 在特定进度点添加粒子
+          if (isOne && progress > 0.1 && progress < 0.9 && Math.random() > 0.7) {
+            createParticle(particleGroup, dropX, currentY, meteorSize, resultColor);
           }
           
           // 如果动画未完成，继续下一帧
@@ -333,7 +304,12 @@ export const createMeteorAnimation = (
             previousTimestamp = timestamp;
             requestAnimationFrame(step);
           } else {
-            // 动画完成，淡出流星
+            // 动画完成，添加碰撞粒子效果
+            if (isOne) {
+              createImpactEffect(svg, dropX, target.y, meteorSize * 1.5, resultColor);
+            }
+            
+            // 淡出流星
             meteorGroup.transition()
               .duration(200)
               .style('opacity', 0)
@@ -361,4 +337,125 @@ export const createMeteorAnimation = (
   if (totalAnimations === 0 && onComplete) {
     onComplete();
   }
-}; 
+};
+
+/**
+ * 创建单个粒子
+ */
+function createParticle(
+  container: d3.Selection<SVGGElement, unknown, null, undefined>,
+  x: number,
+  y: number,
+  size: number,
+  color: string
+): void {
+  // 随机角度和速度
+  const angle = Math.random() * Math.PI * 2;
+  const speed = Math.random() * 2 + 1;
+  const particleSize = Math.random() * (size / 4) + (size / 8);
+  
+  // 初始位置偏移
+  const offsetX = (Math.random() - 0.5) * size * 0.5;
+  
+  // 创建粒子
+  const particle = container.append('circle')
+    .attr('cx', x + offsetX)
+    .attr('cy', y)
+    .attr('r', particleSize)
+    .attr('fill', color)
+    .style('opacity', 0.8);
+  
+  // 粒子动画
+  const duration = Math.random() * 300 + 200;
+  const vx = Math.cos(angle) * speed;
+  const vy = Math.sin(angle) * speed;
+  
+  // 使用自定义动画而不是d3.transition，更好地控制物理效果
+  let startTime: number;
+  
+  function animateParticle(timestamp: number) {
+    if (!startTime) startTime = timestamp;
+    const progress = (timestamp - startTime) / duration;
+    
+    if (progress < 1) {
+      // 模拟重力和摩擦力
+      const currentX = x + offsetX + vx * progress * size * 0.5;
+      const currentY = y + vy * progress * size * 0.5 + 2 * progress * progress * size; // 加速下落
+      
+      particle
+        .attr('cx', currentX)
+        .attr('cy', currentY)
+        .style('opacity', 0.8 - progress * 0.8);
+      
+      requestAnimationFrame(animateParticle);
+    } else {
+      particle.remove();
+    }
+  }
+  
+  requestAnimationFrame(animateParticle);
+}
+
+/**
+ * 创建碰撞效果
+ */
+function createImpactEffect(
+  svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+  x: number,
+  y: number,
+  size: number,
+  color: string
+): void {
+  // 碰撞闪光
+  const flash = svg.append('circle')
+    .attr('cx', x)
+    .attr('cy', y)
+    .attr('r', size)
+    .attr('fill', 'white')
+    .style('opacity', 0.8)
+    .style('filter', 'url(#glow)');
+  
+  flash.transition()
+    .duration(150)
+    .attr('r', size * 1.5)
+    .style('opacity', 0)
+    .on('end', () => flash.remove());
+  
+  // 创建多个散射粒子
+  const particleCount = Math.floor(Math.random() * 6) + 8;
+  const impactGroup = svg.append('g');
+  
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (i / particleCount) * Math.PI * 2;
+    const distance = size * (Math.random() * 0.5 + 0.8);
+    const particleSize = Math.random() * (size / 3) + (size / 6);
+    
+    // 粒子的终点位置
+    const endX = x + Math.cos(angle) * distance;
+    const endY = y + Math.sin(angle) * distance;
+    
+    // 创建粒子
+    const particle = impactGroup.append('circle')
+      .attr('cx', x)
+      .attr('cy', y)
+      .attr('r', particleSize)
+      .attr('fill', color)
+      .style('opacity', 0.8);
+    
+    // 粒子动画 - 快速出现然后减速
+    particle.transition()
+      .duration(300)
+      .ease(d3.easeCubicOut) // 初始快速减速
+      .attr('cx', endX)
+      .attr('cy', endY)
+      .transition()
+      .duration(200)
+      .style('opacity', 0)
+      .on('end', () => particle.remove());
+  }
+  
+  // 清理整个群组
+  setTimeout(() => {
+    impactGroup.remove();
+  }, 600);
+} 
