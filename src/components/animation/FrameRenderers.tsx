@@ -312,7 +312,7 @@ export const renderResultFrame = (
       .style('opacity', 1);
       
     // 显示二进制表示
-    const binaryText = svg.append('text')
+    svg.append('text')
       .attr('class', 'description-text')
       .attr('x', width / 2)
       .attr('y', 230)

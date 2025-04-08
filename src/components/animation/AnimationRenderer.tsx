@@ -3,7 +3,6 @@ import * as d3 from 'd3';
 import { toBinaryString } from './utils/BinaryUtils';
 import { renderAllBinaryXorOperation } from './renderers/BinaryAllXorRenderer';
 import { renderResultFrame } from './renderers/ResultFrameRenderer';
-import { useAudio } from './hooks/useAudio';
 
 interface AnimationRendererProps {
   width: number;
@@ -34,8 +33,7 @@ export const AnimationRenderer: React.FC<AnimationRendererProps> = ({
   numbers,
   currentFrame,
   totalFrames,
-  onPlaySound,
-  result
+  onPlaySound
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   
@@ -62,9 +60,9 @@ export const AnimationRenderer: React.FC<AnimationRendererProps> = ({
       // 帧0：渲染所有数组元素
       renderAllBinaryXorOperation(
         d3.select(svgRef.current),
-        numbers,
         width,
         height,
+        numbers,
         30, // 增加digitWidth值，使二进制表示更宽
         true // 显示十进制值
       );

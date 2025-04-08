@@ -148,6 +148,9 @@ export const createBreathingBorderEffect = (
     .attr('values', '2;4;2')
     .attr('dur', '2s')
     .attr('repeatCount', 'indefinite');
+  
+  // 使用 animateElement
+  defs.select(`#${id}-filter-blur`).append(() => animateElement.node());
 };
 
 /**

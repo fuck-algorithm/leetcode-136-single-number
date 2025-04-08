@@ -37,7 +37,6 @@ export const renderBinaryRow = (
   }
   
   // 根据二进制长度和每个位的宽度自动调整尺寸
-  const binaryLength = binary.length;
   
   // 计算字体大小，根据数字宽度动态调整
   const fontSize = Math.max(8, Math.min(14, digitWidth * 0.7));
@@ -262,7 +261,6 @@ export const createMeteorAnimation = (
       .on('end', () => {
         // 使用自定义计时器执行动画
         let start: number | null = null;
-        let previousTimestamp: number | null = null;
         
         function step(timestamp: number) {
           if (!start) start = timestamp;
@@ -300,7 +298,6 @@ export const createMeteorAnimation = (
           
           // 如果动画未完成，继续下一帧
           if (progress < 1) {
-            previousTimestamp = timestamp;
             requestAnimationFrame(step);
           } else {
             // 动画完成，添加碰撞粒子效果

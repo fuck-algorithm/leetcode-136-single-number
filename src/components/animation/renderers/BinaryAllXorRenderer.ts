@@ -9,14 +9,15 @@ import { renderBinaryRow } from './BinaryRowRenderer';
  * @param resultValue XOR结果值
  * @param toBinaryStringFn 二进制转换函数(可选)
  */
-export function renderAllBinaryXorOperation(
+export const renderAllBinaryXorOperation = (
   svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
-  numbers: number[],
   width: number,
   height: number,
-  digitWidth: number,
+  numbers: number[],
+  // @ts-ignore 参数保留以供未来扩展使用
+  animationDuration: number = 2000,
   showDecimal: boolean = true
-): void {
+): void => {
   svg.selectAll('*').remove();
   
   if (numbers.length === 0) return;
@@ -518,9 +519,8 @@ function getColorByIndex(index: number): string {
   return colors[index % colors.length];
 }
 
-/**
- * 创建闪光效果
- */
+// 以下函数当前未使用，但作为可能的动画效果保留
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const createFlashEffect = (
   svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
   x: number,
@@ -548,9 +548,8 @@ const createFlashEffect = (
     .remove();
 };
 
-/**
- * 创建粒子效果
- */
+// 以下函数当前未使用，但作为可能的动画效果保留
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const createParticleEffect = (
   svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
   x: number,
