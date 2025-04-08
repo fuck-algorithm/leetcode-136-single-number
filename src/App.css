@@ -111,9 +111,6 @@
 
 form {
   display: flex;
-  flex-direction: column;
-  align-items: start;
-  gap: var(--spacing-md);
   width: 100%;
 }
 
@@ -128,20 +125,21 @@ label {
   font-weight: 600;
   color: var(--text-secondary);
   font-size: 16px;
-  margin-bottom: var(--spacing-xs);
-  display: block;
+  white-space: nowrap;
+  margin-right: var(--spacing-sm);
 }
 
 input {
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-md);
   flex: 1;
-  min-width: 300px;
+  min-width: 200px;
   outline: none;
   transition: var(--transition-fast);
   font-family: var(--font-code);
   font-size: 16px;
+  height: 48px;
 }
 
 input:focus {
@@ -311,6 +309,19 @@ input:focus {
   
   .main-title a:first-child {
     max-width: 80%;
+  }
+  
+  .input-wrapper {
+    flex-wrap: wrap;
+  }
+  
+  label {
+    width: 100%;
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  input, .start-button {
+    flex: 1;
   }
 }
 

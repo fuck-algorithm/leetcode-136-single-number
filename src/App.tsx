@@ -169,8 +169,8 @@ function App() {
       </h1>
       <div className="input-section">
         <form onSubmit={handleSubmit}>
-          <label htmlFor="numbers">输入数组（用逗号分隔）：</label>
           <div className="input-wrapper">
+            <label htmlFor="numbers">输入数组（用逗号分隔）：</label>
             <input
               type="text"
               id="numbers"
