@@ -42,8 +42,8 @@ export function renderAllBinaryXorOperation(
   svg.attr('viewBox', `0 0 ${width} ${totalHeight}`);
   
   // 计算左右边距和标签位置，使内容居中
-  const leftLabelWidth = 100; // 增加左侧标签所需宽度
-  const rightMargin = 30; // 右侧边距
+  const leftLabelWidth = 150; // 增加左侧标签所需宽度，为连线提供更多空间
+  const rightMargin = 5; // 减小右侧边距
   
   // 计算整个内容的宽度，包括标签和二进制表示
   const contentWidth = width - leftLabelWidth - rightMargin;
@@ -64,9 +64,24 @@ export function renderAllBinaryXorOperation(
     numberColorMap.set(num, getColorByIndex(index));
   });
   
+  // 为连接线创建一个单独的组，确保它们绘制在数字下面
+  const lineGroup = svg.append('g').attr('class', 'connection-lines');
+  
+  // 创建一个记录相同数字行索引的映射
+  const numberRowMap = new Map<number, number[]>();
+  numbers.forEach((num, index) => {
+    if (!numberRowMap.has(num)) {
+      numberRowMap.set(num, []);
+    }
+    numberRowMap.get(num)?.push(index);
+  });
+  
   // 保存源和目标位置
   const sourcePositions: Array<{ x: number; y: number; value: string; color: string }> = [];
   const targetPositions: Array<{ x: number; y: number }> = [];
+  
+  // 保存每个数字行的左侧位置，用于连线
+  const numberRowPositions: Array<{ num: number, y: number, paired: boolean }> = [];
   
   // 渲染输入的二进制表示
   binaryStrings.forEach((binary, index) => {
@@ -75,6 +90,13 @@ export function renderAllBinaryXorOperation(
     
     // 获取当前数字对应的颜色
     const color = numberColorMap.get(numbers[index]) || '#228be6'; // 默认蓝色
+    
+    // 记录数字行位置信息
+    numberRowPositions.push({ 
+      num: numbers[index], 
+      y: rowCenterY, 
+      paired: false 
+    });
     
     // 渲染每一行的二进制表示
     renderBinaryRow(
@@ -106,6 +128,116 @@ export function renderAllBinaryXorOperation(
       }
     }
   });
+  
+  // 绘制相同数字之间的连接线
+  numberRowMap.forEach((rowIndices, num) => {
+    // 仅对出现偶数次的数字进行两两配对
+    const color = numberColorMap.get(num) || '#228be6';
+    
+    // 两两配对
+    for (let i = 0; i < rowIndices.length; i += 2) {
+      // 如果只剩下单个元素就跳过（这是只出现一次的数字）
+      if (i + 1 >= rowIndices.length) continue;
+      
+      const row1 = rowIndices[i];
+      const row2 = rowIndices[i + 1];
+      
+      const y1 = numberRowPositions[row1].y;
+      const y2 = numberRowPositions[row2].y;
+      
+      // 标记这两行已配对
+      numberRowPositions[row1].paired = true;
+      numberRowPositions[row2].paired = true;
+      
+      // 绘制连接线
+      const lineX = 50; // 增加左侧连线的X坐标，给连线留出更多空间
+      
+      // 创建路径 - 使用贝塞尔曲线使连线更平滑
+      const path = lineGroup.append('path')
+        .attr('d', `M ${lineX} ${y1} C ${lineX - 30} ${(y1 + y2) / 2}, ${lineX - 30} ${(y1 + y2) / 2}, ${lineX} ${y2}`)
+        .attr('stroke', color)
+        .attr('stroke-width', 2)
+        .attr('fill', 'none')
+        .attr('stroke-opacity', 0.7)
+        .attr('stroke-dasharray', '4,2')
+        .style('pointer-events', 'none');
+      
+      // 添加连线动画
+      path.style('stroke-dashoffset', 100)
+        .transition()
+        .duration(500)
+        .style('stroke-dashoffset', 0);
+      
+      // 添加指示配对的小圆圈
+      lineGroup.append('circle')
+        .attr('cx', lineX)
+        .attr('cy', y1)
+        .attr('r', 3)
+        .attr('fill', color)
+        .attr('stroke', 'white')
+        .attr('stroke-width', 1);
+      
+      lineGroup.append('circle')
+        .attr('cx', lineX)
+        .attr('cy', y2)
+        .attr('r', 3)
+        .attr('fill', color)
+        .attr('stroke', 'white')
+        .attr('stroke-width', 1);
+    }
+  });
+  
+  // 突出显示单独出现的数字行
+  const singleNumber = numberRowPositions.find(item => 
+    !item.paired && numberRowMap.get(item.num)?.length === 1
+  );
+  
+  if (singleNumber) {
+    const color = numberColorMap.get(singleNumber.num) || '#228be6';
+    const singleLineX = 50; // 与连线X坐标保持一致
+    
+    // 添加特殊标记，指示这是唯一的数字
+    lineGroup.append('text')
+      .attr('x', singleLineX - 5)
+      .attr('y', singleNumber.y)
+      .attr('dominant-baseline', 'middle')
+      .attr('text-anchor', 'end')
+      .attr('fill', color)
+      .attr('font-weight', 'bold')
+      .attr('font-size', '14px')
+      .text('唯一');
+    
+    // 添加高亮指示器
+    const highlight = lineGroup.append('circle')
+      .attr('cx', singleLineX)
+      .attr('cy', singleNumber.y)
+      .attr('r', 5)
+      .attr('fill', color)
+      .attr('stroke', 'white')
+      .attr('stroke-width', 1.5);
+    
+    // 添加脉动动画
+    highlight.transition()
+      .duration(1000)
+      .attr('r', 8)
+      .attr('opacity', 0.6)
+      .transition()
+      .duration(1000)
+      .attr('r', 5)
+      .attr('opacity', 1)
+      .on('end', function repeat() {
+        d3.select(this)
+          .transition()
+          .duration(1000)
+          .attr('r', 8)
+          .attr('opacity', 0.6)
+          .transition()
+          .duration(1000)
+          .attr('r', 5)
+          .attr('opacity', 1)
+          .on('end', repeat);
+      });
+  }
   
   // 结果行的Y坐标 - 也使用中心点计算
   const resultY = totalInputHeight;
@@ -149,16 +281,16 @@ export function renderAllBinaryXorOperation(
       adjustedDigitWidth,
       '#40c057',
       () => {
-        // 动画完成后渲染结果行
+        // 仅在动画完成后渲染结果
         renderBinaryRow(
           svg,
           resultBinary,
           startX,
-          resultCenterY, // 使用中心坐标
+          resultCenterY,
           adjustedDigitWidth,
           '#40c057',
-          false,
-          true
+          false,  // 不需要入场动画
+          true    // 是结果行
         );
       }
     );
@@ -352,19 +484,36 @@ function createMeteorAnimation(
   let completedAnimations = 0;
   const totalAnimations = Math.min(sourcePositions.length, targetPositions.length);
   
-  // 为每个位创建流星动画
-  sourcePositions.forEach((source, i) => {
-    if (i >= targetPositions.length) return;
-    const target = targetPositions[i];
+  // 按列索引对源位置进行分组，确保每列只有一个流星
+  const columnMap = new Map<number, {source: typeof sourcePositions[0], index: number}>();
+  
+  // 收集每列的源位置，使用x坐标作为键（确保每列只保留一个值为1的位置）
+  sourcePositions.forEach((source, index) => {
+    // 四舍五入x坐标到最近的列位置，防止浮点数比较问题
+    const columnKey = Math.round(source.x);
     
-    // 计算X坐标：应该与目标X坐标相同（确保垂直下落）
+    // 如果这列还没有源位置，或当前源位置是1（优先使用值为1的位）
+    if (!columnMap.has(columnKey) || source.value === '1') {
+      columnMap.set(columnKey, {source, index});
+    }
+  });
+  
+  // 使用分组后的位置创建流星
+  let animationCount = 0;
+  columnMap.forEach(({source, index}, columnKey) => {
+    if (index >= targetPositions.length) return;
+    const target = targetPositions[index];
+    
+    // 确保流星X坐标与列完全对齐
     const dropX = target.x;
     
     // 只为值为1的位创建完整动画
     const isOne = source.value === '1';
     
     // 计算动画参数
-    const delay = Math.min(i * 50, 400); // 稍微错开动画开始时间
+    const delay = Math.min(animationCount * 50, 400); // 稍微错开动画开始时间
+    animationCount++; // 增加计数器以确保动画时间错开
+    
     const distance = Math.abs(target.y - source.y);
     const actualDuration = Math.min(duration, Math.max(500, distance)); // 根据距离调整实际动画时间
     
@@ -468,7 +617,7 @@ function createMeteorAnimation(
                 
                 // 增加计数器并检查是否完成所有动画
                 completedAnimations++;
-                if (completedAnimations >= totalAnimations && onComplete) {
+                if (completedAnimations >= animationCount && onComplete) {
                   setTimeout(onComplete, 100);
                 }
               });
@@ -483,7 +632,7 @@ function createMeteorAnimation(
   });
   
   // 如果没有动画要执行，则立即调用完成回调
-  if (totalAnimations === 0 && onComplete) {
+  if (animationCount === 0 && onComplete) {
     onComplete();
   }
 }
