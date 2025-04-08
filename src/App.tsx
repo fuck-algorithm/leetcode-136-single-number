@@ -187,8 +187,8 @@ function App() {
             >
               🎲
             </button>
+            <button type="submit" className="primary start-button">开始</button>
           </div>
-          <button type="submit" className="primary start-button">开始</button>
         </form>
         {error && (
           <div 
