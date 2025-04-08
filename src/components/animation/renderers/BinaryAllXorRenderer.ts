@@ -96,7 +96,7 @@ export function renderAllBinaryXorOperation(
   const targetPositions: Array<{ x: number; y: number }> = [];
   
   // 保存每个数字行的左侧位置，用于连线
-  const numberRowPositions: Array<{ num: number, y: number, paired: boolean }> = [];
+  const numberRowPositions: Array<{ num: number, y: number, paired: boolean, labelX: number }> = [];
   
   // 渲染输入的二进制表示
   binaryStrings.forEach((binary, index) => {
@@ -106,11 +106,13 @@ export function renderAllBinaryXorOperation(
     // 获取当前数字对应的颜色
     const color = numberColorMap.get(numbers[index]) || '#228be6'; // 默认蓝色
     
-    // 记录数字行位置信息
+    // 记录数字行位置信息 - 包括标签的X坐标
+    const labelX = startX - 10; // 标签位于二进制表示左侧
     numberRowPositions.push({ 
       num: numbers[index], 
       y: rowCenterY, 
-      paired: false 
+      paired: false,
+      labelX: labelX
     });
     
     // 渲染每一行的二进制表示
@@ -144,32 +146,70 @@ export function renderAllBinaryXorOperation(
     }
   });
   
+  // 创建映射以跟踪每个数字对已使用的垂直偏移量
+  const numberOffsetMap = new Map<number, number[]>();
+  
   // 绘制相同数字之间的连接线
   numberRowMap.forEach((rowIndices, num) => {
     // 仅对出现偶数次的数字进行两两配对
     const color = numberColorMap.get(num) || '#228be6';
     
+    // 初始化此数字的偏移量记录
+    numberOffsetMap.set(num, []);
+    
+    // 随机化配对顺序以避免总是连接相邻的行
+    const shuffledIndices = [...rowIndices].sort(() => Math.random() - 0.5);
+    
     // 两两配对
-    for (let i = 0; i < rowIndices.length; i += 2) {
+    for (let i = 0; i < shuffledIndices.length; i += 2) {
       // 如果只剩下单个元素就跳过（这是只出现一次的数字）
-      if (i + 1 >= rowIndices.length) continue;
+      if (i + 1 >= shuffledIndices.length) continue;
       
-      const row1 = rowIndices[i];
-      const row2 = rowIndices[i + 1];
+      const row1 = shuffledIndices[i];
+      const row2 = shuffledIndices[i + 1];
       
-      const y1 = numberRowPositions[row1].y;
-      const y2 = numberRowPositions[row2].y;
+      const pos1 = numberRowPositions[row1];
+      const pos2 = numberRowPositions[row2];
+      
+      const y1 = pos1.y;
+      const y2 = pos2.y;
       
       // 标记这两行已配对
       numberRowPositions[row1].paired = true;
       numberRowPositions[row2].paired = true;
       
-      // 绘制连接线
-      const lineX = 50; // 增加左侧连线的X坐标，给连线留出更多空间
+      // 计算标签位置，生成动态连线位置
+      const labelX1 = pos1.labelX;
+      const labelX2 = pos2.labelX;
+      
+      // 获取已用偏移量并计算新偏移
+      const usedOffsets = numberOffsetMap.get(num) || [];
+      let offset = 5; // 基本偏移
+      
+      // 找到一个未被使用的偏移量
+      while (usedOffsets.includes(offset)) {
+        offset += 5; // 增加偏移直到找到未使用的值
+      }
+      usedOffsets.push(offset);
+      
+      // 使用这个数字的偏移量创建连接点
+      const connectorX1 = labelX1 - offset;
+      const connectorX2 = labelX2 - offset;
+      
+      // 计算控制点，使曲线更自然
+      const verticalDistance = Math.abs(y2 - y1);
+      const controlPointOffset = Math.min(verticalDistance * 0.4, 60); // 根据垂直距离动态计算，但设置上限
+      
+      // 计算两个控制点，使曲线更平滑
+      const controlX1 = connectorX1 - controlPointOffset;
+      const controlY1 = y1 + (y2 - y1) / 4; // 第一个控制点位于曲线1/4处
+      
+      const controlX2 = connectorX2 - controlPointOffset;
+      const controlY2 = y1 + 3 * (y2 - y1) / 4; // 第二个控制点位于曲线3/4处
       
       // 创建路径 - 使用贝塞尔曲线使连线更平滑
       const path = lineGroup.append('path')
-        .attr('d', `M ${lineX} ${y1} C ${lineX - 30} ${(y1 + y2) / 2}, ${lineX - 30} ${(y1 + y2) / 2}, ${lineX} ${y2}`)
+        .attr('d', `M ${connectorX1} ${y1} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${connectorX2} ${y2}`)
         .attr('stroke', color)
         .attr('stroke-width', 2)
         .attr('fill', 'none')
@@ -185,7 +225,7 @@ export function renderAllBinaryXorOperation(
       
       // 添加指示配对的小圆圈
       lineGroup.append('circle')
-        .attr('cx', lineX)
+        .attr('cx', connectorX1)
         .attr('cy', y1)
         .attr('r', 3)
         .attr('fill', color)
@@ -193,7 +233,7 @@ export function renderAllBinaryXorOperation(
         .attr('stroke-width', 1);
       
       lineGroup.append('circle')
-        .attr('cx', lineX)
+        .attr('cx', connectorX2)
         .attr('cy', y2)
         .attr('r', 3)
         .attr('fill', color)
@@ -209,7 +249,7 @@ export function renderAllBinaryXorOperation(
   
   if (singleNumber) {
     const color = numberColorMap.get(singleNumber.num) || '#228be6';
-    const singleLineX = 50; // 与连线X坐标保持一致
+    const singleLineX = singleNumber.labelX - 10; // 使用与数字位置相关的X坐标
     
     // 不显示文本标记，只保留高亮指示器
     // 添加高亮指示器
