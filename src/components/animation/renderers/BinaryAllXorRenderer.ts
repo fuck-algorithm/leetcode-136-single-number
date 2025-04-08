@@ -362,8 +362,8 @@ export function renderAllBinaryXorOperation(
   // 显示十进制结果值 - 与结果行垂直对齐
   if (showDecimal) {
     const result = numbers.reduce((acc, curr) => acc ^ curr, 0);
-    // 将数值放在标签右侧的固定位置
-    renderNumberLabel(svg, result, 90, resultCenterY, '#40c057');
+    // 将数值放在与其他行数字相同的位置
+    renderNumberLabel(svg, result, startX - 10, resultCenterY, '#40c057');
   }
   
   // 使用动画
