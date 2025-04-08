@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import { create3DGradient } from '../effects/backgroundEffects';
 import { addRadialEffect } from '../effects/particleEffects';
-import { createGlowFilter } from '../effects/glowEffects';
+import { createGlowFilter, addBreathingBorder } from '../effects/glowEffects';
 
 /**
  * 渲染单行二进制数（带流星效果）
@@ -80,6 +80,9 @@ export const renderBinaryRow = (
       
       // 如果是结果行，添加特殊效果
       if (isResult) {
+        // 为结果行添加呼吸发光边框效果
+        addBreathingBorder(rect, color, binary.length > 24 ? 0.8 : (binary.length > 16 ? 1.2 : 1.5));
+        
         rect.transition()
           .duration(500)
           .attr('transform', 'scale(1.1)')
@@ -90,6 +93,11 @@ export const renderBinaryRow = (
         // 添加放射状光效
         const effectRadius = Math.min(20, rectWidth * 1.8);
         addRadialEffect(svg, x, y, color, effectRadius);
+      }
+      // 如果不是结果行但需要特殊呼吸效果
+      else if (animate) {
+        // 为动画中的1添加呼吸发光边框效果，但使用较小的边框宽度
+        addBreathingBorder(rect, color, binary.length > 24 ? 0.5 : (binary.length > 16 ? 0.8 : 1));
       }
       
       // 如果需要动画效果
@@ -231,7 +239,7 @@ export const createMeteorAnimation = (
       .text(source.value);
       
     // 为值为1的位创建流星尾巴
-    let meteorTail;
+    let meteorTail: d3.Selection<SVGRectElement, unknown, null, undefined> | undefined;
     if (isOne) {
       meteorTail = meteorGroup.append('rect')
         .attr('x', source.x - meteorWidth / 2)
