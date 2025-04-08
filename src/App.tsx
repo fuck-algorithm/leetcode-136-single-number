@@ -14,7 +14,7 @@ function App() {
   const generateRandomArray = () => {
     // 生成1-8个随机数字对，再加上一个单独的数字，确保总长度不超过20
     const maxPairs = Math.min(8, 9); // 最多9对+1个单数 = 19
-    const length = Math.floor(Math.random() * maxPairs) + 1; // 1-8/9之间的随机数
+    const pairCount = Math.floor(Math.random() * maxPairs) + 1; // 1-8/9之间的随机数
     
     // 使用较大的随机数范围，在0到2^32之间随机生成
     const MAX_RANDOM = Math.pow(2, 32); // 0到2^32之间
@@ -24,20 +24,27 @@ function App() {
       return Math.floor(Math.random() * MAX_RANDOM);
     };
     
+    // 生成只出现一次的单个数字
     const singleNumber = generateLargeRandom();
+    
+    // 用于存储已生成的对子，确保不重复
+    const usedPairNumbers = new Set<number>();
+    usedPairNumbers.add(singleNumber); // 确保对子不会使用单独数字
     
     // 生成随机数对
     const pairs: number[] = [];
-    for (let i = 0; i < length; i++) {
-      const num = generateLargeRandom();
-      // 确保随机生成的数不是单独的数字
-      if (num !== singleNumber) {
-        pairs.push(num, num); // 添加两次相同的数字
-      } else {
-        // 如果随机到了单独数字，则再随机一次
-        const newNum = (num === MAX_RANDOM - 1) ? num - 1 : num + 1;
-        pairs.push(newNum, newNum);
-      }
+    for (let i = 0; i < pairCount; i++) {
+      let pairNumber: number;
+      // 确保生成的对子数字不会与已有数字重复
+      do {
+        pairNumber = generateLargeRandom();
+      } while (usedPairNumbers.has(pairNumber));
+      
+      // 添加到已使用集合
+      usedPairNumbers.add(pairNumber);
+      
+      // 每个对子数字添加两次
+      pairs.push(pairNumber, pairNumber);
     }
     
     // 加入单独的数字
@@ -105,6 +112,43 @@ function App() {
       return `数值超出范围: ${outOfRangeParts.join(', ')}，每个值必须在0和2^32之间`;
     }
     
+    // 检查是否符合"一个元素出现一次，其他元素都出现两次"的条件
+    const parsedNumbers = validParts.map(part => Number(part));
+    const countMap = new Map<number, number>();
+    
+    // 统计每个数字出现的次数
+    for (const num of parsedNumbers) {
+      countMap.set(num, (countMap.get(num) || 0) + 1);
+    }
+    
+    // 检查是否只有一个元素出现一次，其他元素都出现两次
+    let singleElements: number[] = [];
+    let invalidElements: string[] = [];
+    
+    for (const [num, count] of countMap.entries()) {
+      if (count === 1) {
+        singleElements.push(num);
+      } else if (count !== 2) {
+        invalidElements.push(`<strong>${num}</strong> (出现 ${count} 次)`);
+      }
+    }
+    
+    if (singleElements.length !== 1 || invalidElements.length > 0) {
+      let errorMsg = '输入不符合"一个元素出现一次，其他元素都出现两次"的条件：';
+      
+      if (singleElements.length === 0) {
+        errorMsg += '没有只出现一次的元素';
+      } else if (singleElements.length > 1) {
+        errorMsg += `有 ${singleElements.length} 个元素只出现一次：<strong>${singleElements.join('</strong>, <strong>')}</strong>`;
+      }
+      
+      if (invalidElements.length > 0) {
+        errorMsg += (singleElements.length !== 1 ? '，并且' : '') + `以下元素出现次数不是两次：${invalidElements.join(', ')}`;
+      }
+      
+      return errorMsg;
+    }
+    
     return null;
   };
 
@@ -151,7 +195,18 @@ function App() {
   return (
     <div className="app">
       <h1 className="main-title">
-        <a href="https://leetcode.cn/problems/single-number/" target="_blank" rel="noopener noreferrer">
+        <a 
+          href="https://leetcode.cn/problems/single-number/" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="no-underline-link"
+          style={{ 
+            textDecoration: 'none !important', 
+            borderBottom: 'none !important',
+            boxShadow: 'none !important',
+            outline: 'none !important'
+          }}
+        >
           LeetCode 136: 只出现一次的数字
         </a>
         <a 
@@ -161,6 +216,7 @@ function App() {
           className="github-button"
           aria-label="View source on GitHub"
           title="查看源代码"
+          style={{ textDecoration: 'none', borderBottom: 'none' }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
             <path fill="rgba(0, 0, 0, 0.6)" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>

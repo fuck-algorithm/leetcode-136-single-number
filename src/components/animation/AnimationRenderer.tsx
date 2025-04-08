@@ -19,7 +19,10 @@ interface AnimationRendererProps {
  * 计算XOR结果
  */
 const calculateXorResult = (numbers: number[]): number => {
-  return numbers.reduce((result, num) => result ^ num, 0);
+  return numbers.reduce((result, num) => {
+    // 确保在每一步都使用无符号32位整数处理
+    return (result >>> 0) ^ (num >>> 0);
+  }, 0) >>> 0; // 最终结果也确保是无符号整数
 };
 
 /**

@@ -7,7 +7,8 @@ export const calculateXorSteps = (numbers: number[]): number[] => {
   const results = [0]; // 初始值为0
   
   for (let i = 0; i < numbers.length; i++) {
-    results.push(results[i] ^ numbers[i]);
+    // 确保每一步都使用无符号32位整数处理
+    results.push(((results[i] >>> 0) ^ (numbers[i] >>> 0)) >>> 0);
   }
   
   return results;

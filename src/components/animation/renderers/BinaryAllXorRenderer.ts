@@ -429,6 +429,7 @@ export function renderAllBinaryXorOperation(
       '#40c057',
       () => {
         console.log("动画完成回调被调用");
+        
         // 仅在动画完成后渲染结果
         renderBinaryRow(
           svg,
@@ -601,8 +602,15 @@ function createMeteorAnimation(
   color: string,
   onComplete: () => void
 ): void {
+  // 调试打印
+  console.log("开始流星动画:", {
+    sourcePositions: sourcePositions.length,
+    targetPositions: targetPositions.length,
+  });
+  
   // 如果没有足够的位置数据，则不创建动画
   if (sourcePositions.length === 0 || targetPositions.length === 0) {
+    console.log("位置数据不足，跳过动画");
     if (onComplete) onComplete();
     return;
   }
@@ -639,40 +647,28 @@ function createMeteorAnimation(
 
   // 创建计数器跟踪完成的动画数量
   let completedAnimations = 0;
-  const totalAnimations = Math.min(sourcePositions.length, targetPositions.length);
   
-  // 按列索引对源位置进行分组，确保每列只有一个流星
-  const columnMap = new Map<number, {source: typeof sourcePositions[0], index: number}>();
+  // 直接使用源位置和目标位置数组
+  const numAnimations = Math.min(sourcePositions.length, targetPositions.length);
+  console.log(`开始创建 ${numAnimations} 个流星动画`);
   
-  // 收集每列的源位置，使用x坐标作为键（确保每列只保留一个值为1的位置）
-  sourcePositions.forEach((source, index) => {
-    // 四舍五入x坐标到最近的列位置，防止浮点数比较问题
-    const columnKey = Math.round(source.x);
+  // 为每个位创建流星动画
+  for (let i = 0; i < numAnimations; i++) {
+    const source = sourcePositions[i];
+    const target = targetPositions[i];
     
-    // 如果这列还没有源位置，或当前源位置是1（优先使用值为1的位）
-    if (!columnMap.has(columnKey) || source.value === '1') {
-      columnMap.set(columnKey, {source, index});
-    }
-  });
-  
-  // 使用分组后的位置创建流星
-  let animationCount = 0;
-  columnMap.forEach(({source, index}, columnKey) => {
-    if (index >= targetPositions.length) return;
-    const target = targetPositions[index];
-    
-    // 确保流星X坐标与列完全对齐
+    // 确保流星X坐标与目标位置对齐
     const dropX = target.x;
     
     // 只为值为1的位创建完整动画
     const isOne = source.value === '1';
     
     // 计算动画参数
-    const delay = Math.min(animationCount * 50, 400); // 稍微错开动画开始时间
-    animationCount++; // 增加计数器以确保动画时间错开
-    
+    const delay = Math.min(i * 50, 400); // 稍微错开动画开始时间
     const distance = Math.abs(target.y - source.y);
-    const actualDuration = Math.min(duration, Math.max(500, distance)); // 根据距离调整实际动画时间
+    const actualDuration = Math.min(duration, Math.max(500, distance));
+    
+    console.log(`创建流星 #${i}: 从(${source.x}, ${source.y})到(${target.x}, ${target.y}), 值=${source.value}`);
     
     // 创建流星组
     const meteorGroup = svg.append('g')
@@ -687,8 +683,7 @@ function createMeteorAnimation(
       .attr('cx', dropX)
       .attr('cy', source.y)
       .attr('r', meteorSize / 2)
-      .attr('fill', isOne ? source.color : '#adb5bd')
-      .attr('filter', 'url(#glow)');
+      .attr('fill', isOne ? source.color : '#adb5bd');
     
     // 创建流星尾巴（垂直向上）
     let meteorTail = isOne ? meteorGroup.append('path')
@@ -718,6 +713,8 @@ function createMeteorAnimation(
       .duration(100)
       .style('opacity', 1)
       .on('end', () => {
+        console.log(`流星 #${i} 开始动画`);
+        
         // 使用自定义计时器执行动画
         let start: number | null = null;
         
@@ -729,7 +726,6 @@ function createMeteorAnimation(
           let progress = Math.min(1, elapsed / actualDuration);
           
           // 使用缓动函数模拟重力加速度 - 开始慢，结束快
-          // 使用基于物理的二次方程：d = 1/2 * g * t^2
           const easedProgress = progress * progress;
           
           // 计算当前Y位置（垂直下落）
@@ -759,6 +755,8 @@ function createMeteorAnimation(
           if (progress < 1) {
             requestAnimationFrame(step);
           } else {
+            console.log(`流星 #${i} 动画完成`);
+            
             // 动画完成，添加碰撞粒子效果
             if (isOne) {
               createImpactEffectForMeteor(svg, dropX, target.y, meteorSize * 1.5, color);
@@ -774,7 +772,10 @@ function createMeteorAnimation(
                 
                 // 增加计数器并检查是否完成所有动画
                 completedAnimations++;
-                if (completedAnimations >= animationCount && onComplete) {
+                console.log(`完成动画: ${completedAnimations}/${numAnimations}`);
+                
+                if (completedAnimations >= numAnimations && onComplete) {
+                  console.log("所有动画完成，调用回调");
                   setTimeout(onComplete, 100);
                 }
               });
@@ -786,10 +787,11 @@ function createMeteorAnimation(
           requestAnimationFrame(step);
         }, delay);
       });
-  });
+  }
   
   // 如果没有动画要执行，则立即调用完成回调
-  if (animationCount === 0 && onComplete) {
+  if (numAnimations === 0 && onComplete) {
+    console.log("没有动画可执行，直接调用回调");
     onComplete();
   }
 }

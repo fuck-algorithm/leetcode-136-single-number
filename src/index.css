@@ -99,4 +99,13 @@ button:focus-visible {
   button {
     padding: 0.2em 0.4em;
   }
+}
+
+/* 全局链接样式 */
+a, a:link, a:visited, a:hover, a:active, a:focus {
+  text-decoration: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: inherit;
 } 
