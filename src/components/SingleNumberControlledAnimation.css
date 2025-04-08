@@ -29,6 +29,8 @@
   display: flex;
   justify-content: flex-start;
   align-items: center;
+  box-sizing: border-box;
+  max-width: none;
 }
 
 .animation-stage:hover {
@@ -352,8 +354,9 @@
 }
 
 svg {
-  max-width: 100%;
-  overflow: visible;
+  max-width: none !important;
+  width: 100% !important;
+  overflow: visible !important;
   padding: 0;
   margin: 0;
 } 

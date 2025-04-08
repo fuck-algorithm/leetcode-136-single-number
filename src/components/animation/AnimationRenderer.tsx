@@ -62,7 +62,7 @@ export const AnimationRenderer: React.FC<AnimationRendererProps> = ({
         numbers,
         width,
         height,
-        20, // 设置一个合理的digitWidth值
+        30, // 增加digitWidth值，使二进制表示更宽
         true // 显示十进制值
       );
       
@@ -88,7 +88,7 @@ export const AnimationRenderer: React.FC<AnimationRendererProps> = ({
       ref={svgRef}
       width="100%"
       height="100%"
-      viewBox={`0 0 ${width} ${height}`}
+      viewBox={`0 0 ${width + 100} ${height}`} // 增加viewBox宽度，确保捕获更宽区域
       style={{ 
         width: '100%', 
         height: '100%',
@@ -98,7 +98,7 @@ export const AnimationRenderer: React.FC<AnimationRendererProps> = ({
         display: 'block', // 使用块级元素
         maxWidth: '100%' // 确保不超过父容器宽度
       }}
-      preserveAspectRatio="xMinYMid meet" // 左对齐而不是中心对齐
+      preserveAspectRatio="xMinYMid slice" // 使用slice强制填充整个视区
     />
   );
 };

@@ -43,15 +43,15 @@ export function renderAllBinaryXorOperation(
   
   // 计算左右边距和标签位置，使内容居中
   const leftLabelWidth = 150; // 增加左侧标签所需宽度，为连线提供更多空间
-  const rightMargin = 0; // 移除右侧边距
+  const rightMargin = -50; // 使用负边距强制内容扩展到右侧
   
   // 计算整个内容的宽度，包括标签和二进制表示
   const contentWidth = width - leftLabelWidth - rightMargin;
   
-  // 调整数字宽度以适应屏幕
-  const adjustedDigitWidth = Math.min(
+  // 调整数字宽度以适应屏幕，确保不会太小
+  const adjustedDigitWidth = Math.max(
     digitWidth,
-    contentWidth / maxLength
+    Math.min(40, contentWidth / maxLength) // 增加最小宽度，同时设置上限
   );
   
   // 确保整个内容居中
