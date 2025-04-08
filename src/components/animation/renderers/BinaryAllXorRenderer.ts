@@ -26,8 +26,13 @@ export function renderAllBinaryXorOperation(
   
   // 计算最大二进制长度
   let binaryStrings = numbers.map(n => convertToBinary(n));
+  
+  // 修复：使用无符号32位整数操作计算异或结果
   let resultBinary = convertToBinary(
-    numbers.reduce((acc, curr) => acc ^ curr, 0)
+    numbers.reduce((acc, curr) => {
+      // 使用无符号右移0位来确保以32位无符号整数方式处理
+      return (acc >>> 0) ^ (curr >>> 0);
+    }, 0)
   );
   
   // 如果二进制位数太多，截取最后的N位
@@ -361,7 +366,12 @@ export function renderAllBinaryXorOperation(
   
   // 显示十进制结果值 - 与结果行垂直对齐
   if (showDecimal) {
-    const result = numbers.reduce((acc, curr) => acc ^ curr, 0);
+    // 计算结果（使用前面已经计算好的resultBinary对应的值）
+    const result = numbers.reduce((acc, curr) => {
+      // 使用无符号右移0位来确保以32位无符号整数方式处理
+      return (acc >>> 0) ^ (curr >>> 0);
+    }, 0);
+    
     // 将数值放在与其他行数字相同的位置
     renderNumberLabel(svg, result, startX - 10, resultCenterY, '#40c057');
   }
