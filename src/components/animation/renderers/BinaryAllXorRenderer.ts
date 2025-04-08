@@ -95,8 +95,14 @@ export function renderAllBinaryXorOperation(
   const sourcePositions: Array<{ x: number; y: number; value: string; color: string }> = [];
   const targetPositions: Array<{ x: number; y: number }> = [];
   
-  // 保存每个数字行的左侧位置，用于连线
-  const numberRowPositions: Array<{ num: number, y: number, paired: boolean, labelX: number }> = [];
+  // 保存每个数字行的位置信息，用于连线
+  const numberRowPositions: Array<{ 
+    num: number, 
+    y: number, 
+    paired: boolean, 
+    labelX: number,    // 标签右侧位置
+    labelLeftX: number // 添加标签左侧位置
+  }> = [];
   
   // 渲染输入的二进制表示
   binaryStrings.forEach((binary, index) => {
@@ -107,12 +113,24 @@ export function renderAllBinaryXorOperation(
     const color = numberColorMap.get(numbers[index]) || '#228be6'; // 默认蓝色
     
     // 记录数字行位置信息 - 包括标签的X坐标
-    const labelX = startX - 10; // 标签位于二进制表示左侧
+    const labelX = startX - 10; // 标签右侧位于二进制表示左侧
+    const numValue = numbers[index].toString();
+    
+    // 根据数字长度估算文本宽度
+    let fontSize = 14; // 默认字体大小
+    if (numValue.length > 8) {
+      fontSize = Math.max(14 - (numValue.length - 8) * 0.5, 7);
+    }
+    // 估算文本宽度 (每个数字约7px宽度，根据字体大小调整)
+    const estimatedTextWidth = numValue.length * (fontSize * 0.6);
+    const labelLeftX = labelX - estimatedTextWidth; // 估算文本左侧位置
+    
     numberRowPositions.push({ 
       num: numbers[index], 
       y: rowCenterY, 
       paired: false,
-      labelX: labelX
+      labelX: labelX,
+      labelLeftX: labelLeftX
     });
     
     // 渲染每一行的二进制表示
@@ -178,9 +196,9 @@ export function renderAllBinaryXorOperation(
       numberRowPositions[row1].paired = true;
       numberRowPositions[row2].paired = true;
       
-      // 计算标签位置，生成动态连线位置
-      const labelX1 = pos1.labelX;
-      const labelX2 = pos2.labelX;
+      // 使用标签左侧位置而不是右侧位置
+      const leftX1 = pos1.labelLeftX;
+      const leftX2 = pos2.labelLeftX;
       
       // 获取已用偏移量并计算新偏移
       const usedOffsets = numberOffsetMap.get(num) || [];
@@ -192,9 +210,9 @@ export function renderAllBinaryXorOperation(
       }
       usedOffsets.push(offset);
       
-      // 使用这个数字的偏移量创建连接点
-      const connectorX1 = labelX1 - offset;
-      const connectorX2 = labelX2 - offset;
+      // 使用这个数字的偏移量创建连接点 - 使用左侧位置加偏移
+      const connectorX1 = leftX1 - offset;
+      const connectorX2 = leftX2 - offset;
       
       // 计算控制点，使曲线更自然
       const verticalDistance = Math.abs(y2 - y1);
@@ -249,7 +267,8 @@ export function renderAllBinaryXorOperation(
   
   if (singleNumber) {
     const color = numberColorMap.get(singleNumber.num) || '#228be6';
-    const singleLineX = singleNumber.labelX - 10; // 使用与数字位置相关的X坐标
+    // 使用标签左侧位置
+    const singleLineX = singleNumber.labelLeftX - 10; 
     
     // 不显示文本标记，只保留高亮指示器
     // 添加高亮指示器
