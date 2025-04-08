@@ -21,14 +21,25 @@ export function renderAllBinaryXorOperation(
   
   if (numbers.length === 0) return;
   
+  // 二进制位最大显示数量限制 - 防止显示太多位导致溢出
+  const maxDisplayDigits = 32; // 限制最大显示的二进制位数
+  
   // 计算最大二进制长度
-  const binaryStrings = numbers.map(n => convertToBinary(n));
-  const resultBinary = convertToBinary(
+  let binaryStrings = numbers.map(n => convertToBinary(n));
+  let resultBinary = convertToBinary(
     numbers.reduce((acc, curr) => acc ^ curr, 0)
   );
-  const maxLength = Math.max(
-    ...binaryStrings.map(b => b.length),
-    resultBinary.length
+  
+  // 如果二进制位数太多，截取最后的N位
+  if (Math.max(...binaryStrings.map(b => b.length), resultBinary.length) > maxDisplayDigits) {
+    binaryStrings = binaryStrings.map(b => b.slice(-maxDisplayDigits)); // 取最后32位
+    // 结果二进制也需要截取
+    resultBinary = resultBinary.slice(-maxDisplayDigits);
+  }
+  
+  const maxLength = Math.min(
+    Math.max(...binaryStrings.map(b => b.length), resultBinary.length),
+    maxDisplayDigits
   );
   
   // 行高和间距
@@ -43,19 +54,23 @@ export function renderAllBinaryXorOperation(
   
   // 计算左右边距和标签位置，使内容居中
   const leftLabelWidth = 150; // 增加左侧标签所需宽度，为连线提供更多空间
-  const rightMargin = -50; // 使用负边距强制内容扩展到右侧
+  const rightMargin = 10; // 使用正边距，确保内容不会完全贴边
   
   // 计算整个内容的宽度，包括标签和二进制表示
   const contentWidth = width - leftLabelWidth - rightMargin;
   
-  // 调整数字宽度以适应屏幕，确保不会太小
-  const adjustedDigitWidth = Math.max(
-    digitWidth,
-    Math.min(40, contentWidth / maxLength) // 增加最小宽度，同时设置上限
+  // 精确计算每个数字位的宽度，确保填满但不溢出
+  const calculatedDigitWidth = contentWidth / maxLength;
+  
+  // 调整数字宽度以适应屏幕，但设置上限以防止过大
+  const adjustedDigitWidth = Math.min(
+    Math.max(calculatedDigitWidth, 15), // 至少15px宽，但不要比计算值小
+    25 // 最大宽度上限
   );
   
-  // 确保整个内容居中
-  const startX = leftLabelWidth + (contentWidth - adjustedDigitWidth * maxLength) / 2;
+  // 考虑到调整后的宽度可能导致总宽度变化，重新计算起始点
+  const totalContentWidth = adjustedDigitWidth * maxLength;
+  const startX = leftLabelWidth + (contentWidth - totalContentWidth) / 2;
   
   // 创建数字到颜色的映射，相同数字使用相同颜色
   const numberColorMap = new Map<number, string>();

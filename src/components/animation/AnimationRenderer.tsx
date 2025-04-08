@@ -88,17 +88,17 @@ export const AnimationRenderer: React.FC<AnimationRendererProps> = ({
       ref={svgRef}
       width="100%"
       height="100%"
-      viewBox={`0 0 ${width + 100} ${height}`} // 增加viewBox宽度，确保捕获更宽区域
+      viewBox={`0 0 ${width} ${height}`} // 去掉额外的宽度，使用原始宽度
       style={{ 
         width: '100%', 
         height: '100%',
-        overflow: 'visible', // 改为visible允许内容超出区域显示
+        overflow: 'hidden', // 改回hidden防止溢出
         margin: 0, // 移除所有边距
         padding: 0, // 确保无padding
         display: 'block', // 使用块级元素
         maxWidth: '100%' // 确保不超过父容器宽度
       }}
-      preserveAspectRatio="xMinYMid slice" // 使用slice强制填充整个视区
+      preserveAspectRatio="xMinYMid meet" // 使用meet不要用slice
     />
   );
 };
