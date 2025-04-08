@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import SingleNumberControlledAnimation from './components/SingleNumberControlledAnimation'
 import SingleNumberVisualizer from './components/SingleNumberVisualizer'
+import './styles/theme.css'
 import './App.css'
 
 function App() {
@@ -149,7 +150,7 @@ function App() {
 
   return (
     <div className="app">
-      <h1>
+      <h1 className="main-title">
         <a href="https://leetcode.cn/problems/single-number/" target="_blank" rel="noopener noreferrer">
           LeetCode 136: 只出现一次的数字
         </a>
@@ -169,23 +170,25 @@ function App() {
       <div className="input-section">
         <form onSubmit={handleSubmit}>
           <label htmlFor="numbers">输入数组（用逗号分隔）：</label>
-          <input
-            type="text"
-            id="numbers"
-            value={inputValue}
-            onChange={handleInputChange}
-            placeholder="例如：4,1,2,1,2"
-            className={error ? 'input-error' : ''}
-          />
-          <button 
-            type="button" 
-            className="random-button" 
-            onClick={handleRandomClick}
-            title="随机生成数据"
-          >
-            🎲
-          </button>
-          <button type="submit">开始</button>
+          <div className="input-wrapper">
+            <input
+              type="text"
+              id="numbers"
+              value={inputValue}
+              onChange={handleInputChange}
+              placeholder="例如：4,1,2,1,2"
+              className={error ? 'input-error' : ''}
+            />
+            <button 
+              type="button" 
+              className="random-button" 
+              onClick={handleRandomClick}
+              title="随机生成数据"
+            >
+              🎲
+            </button>
+          </div>
+          <button type="submit" className="primary start-button">开始</button>
         </form>
         {error && (
           <div 
@@ -197,13 +200,13 @@ function App() {
 
       <div className="tabs">
         <button 
-          className={activeTab === 'visualizer' ? 'active' : ''}
+          className={activeTab === 'visualizer' ? 'tab-button active' : 'tab-button'}
           onClick={() => setActiveTab('visualizer')}
         >
           题目描述
         </button>
         <button 
-          className={activeTab === 'controlledAnimation' ? 'active' : ''}
+          className={activeTab === 'controlledAnimation' ? 'tab-button active' : 'tab-button'}
           onClick={() => setActiveTab('controlledAnimation')}
         >
           动画演示
@@ -211,8 +214,11 @@ function App() {
       </div>
 
       <div className="content">
-        {activeTab === 'visualizer' && <SingleNumberVisualizer numbers={numbers} />}
-        {activeTab === 'controlledAnimation' && <SingleNumberControlledAnimation numbers={numbers} />}
+        {activeTab === 'visualizer' ? (
+          <SingleNumberVisualizer numbers={numbers} />
+        ) : (
+          <SingleNumberControlledAnimation numbers={numbers} />
+        )}
       </div>
     </div>
   )
