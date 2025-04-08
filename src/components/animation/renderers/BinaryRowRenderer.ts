@@ -13,6 +13,7 @@ import { createGlowFilter, addBreathingBorder } from '../effects/glowEffects';
  * @param color 填充颜色
  * @param animate 是否添加动画
  * @param isResult 是否为结果行
+ * @param maxLength 最大二进制长度，用于对齐
  */
 export const renderBinaryRow = (
   svg: d3.Selection<any, unknown, null, undefined>,
@@ -22,7 +23,8 @@ export const renderBinaryRow = (
   digitWidth: number,
   color: string,
   animate: boolean = false,
-  isResult: boolean = false
+  isResult: boolean = false,
+  maxLength?: number
 ): void => {
   // 确保有滤镜
   createGlowFilter(svg);
@@ -54,10 +56,14 @@ export const renderBinaryRow = (
   // 记录方块起始位置，确保垂直居中
   const rectStartY = y - rectHeight / 2;
   
+  // 计算右对齐的起始偏移量
+  const alignOffset = maxLength !== undefined ? spacing * (maxLength - binary.length) : 0;
+  
   // 渲染每个二进制位
   for (let i = 0; i < binary.length; i++) {
     const digit = binary[i];
-    const x = startX + i * spacing;
+    // 修改X坐标计算，确保与索引对齐
+    const x = startX + alignOffset + i * spacing + spacing / 2;
     const isOne = digit === '1';
     const gradientId = `gradient-${i}-${color.replace('#', '')}`;
     

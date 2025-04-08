@@ -21,6 +21,15 @@ export function renderAllBinaryXorOperation(
   
   if (numbers.length === 0) return;
   
+  // 验证数据是否符合"一个元素出现一次，其他元素都出现两次"的条件
+  const validationResult = validateSingleNumberData(numbers);
+  
+  // 如果验证失败，显示错误信息
+  if (!validationResult.valid) {
+    renderValidationError(svg, width, height, validationResult.errorMessage);
+    return;
+  }
+  
   // 二进制位最大显示数量限制 - 防止显示太多位导致溢出
   const maxDisplayDigits = 32; // 限制最大显示的二进制位数
   
@@ -32,7 +41,7 @@ export function renderAllBinaryXorOperation(
     numbers.reduce((acc, curr) => {
       // 使用无符号右移0位来确保以32位无符号整数方式处理
       return (acc >>> 0) ^ (curr >>> 0);
-    }, 0)
+    }, 0) >>> 0 // 确保最终结果也被视为无符号整数
   );
   
   // 如果二进制位数太多，截取最后的N位
@@ -58,8 +67,8 @@ export function renderAllBinaryXorOperation(
   svg.attr('viewBox', `0 0 ${width} ${totalHeight}`);
   
   // 计算左右边距和标签位置，使内容居中
-  const leftLabelWidth = 150; // 增加左侧标签所需宽度，为连线提供更多空间
-  const rightMargin = 10; // 使用正边距，确保内容不会完全贴边
+  const leftLabelWidth = 300; // 进一步增加左侧标签所需宽度，为连线提供更多空间
+  const rightMargin = 5; // 保持较小的右侧边距
   
   // 计算整个内容的宽度，包括标签和二进制表示
   const contentWidth = width - leftLabelWidth - rightMargin;
@@ -75,7 +84,8 @@ export function renderAllBinaryXorOperation(
   
   // 考虑到调整后的宽度可能导致总宽度变化，重新计算起始点
   const totalContentWidth = adjustedDigitWidth * maxLength;
-  const startX = leftLabelWidth + (contentWidth - totalContentWidth) / 2;
+  // 减少居中偏移量，使内容更靠右显示
+  const startX = leftLabelWidth + (contentWidth - totalContentWidth) / 2 + 20;
   
   // 创建数字到颜色的映射，相同数字使用相同颜色
   const numberColorMap = new Map<number, string>();
@@ -147,13 +157,21 @@ export function renderAllBinaryXorOperation(
       adjustedDigitWidth,
       color,
       false,
-      false
+      false,
+      maxLength // 传入最大长度参数，确保所有行右对齐
     );
+    
+    // 在第一行上方添加位索引标记
+    if (index === 0) {
+      // 计算位索引的Y坐标 - 位于第一行二进制位的上方
+      const indexY = rowCenterY - rowHeight/2 - 10;
+      renderBitIndices(svg, startX, indexY, maxLength, adjustedDigitWidth);
+    }
     
     // 显示十进制值 - 确保与二进制方格垂直对齐
     if (showDecimal) {
       // 直接使用当前行的中心Y坐标 - 确保完全水平对齐
-      renderNumberLabel(svg, numbers[index], startX - 10, rowCenterY, color);
+      renderNumberLabel(svg, numbers[index], startX - 10, rowCenterY, color, leftLabelWidth);
     }
     
     // 收集源位置 - 1的位置
@@ -215,11 +233,11 @@ export function renderAllBinaryXorOperation(
       
       // 获取已用偏移量并计算新偏移
       const usedOffsets = numberOffsetMap.get(num) || [];
-      let offset = 5; // 基本偏移
+      let offset = 15; // 基本偏移增大，提供更多空间
       
       // 找到一个未被使用的偏移量
       while (usedOffsets.includes(offset)) {
-        offset += 5; // 增加偏移直到找到未使用的值
+        offset += 10; // 增加偏移直到找到未使用的值，使用更大的增量
       }
       usedOffsets.push(offset);
       
@@ -304,7 +322,7 @@ export function renderAllBinaryXorOperation(
   
   if (singleNumber) {
     const color = numberColorMap.get(singleNumber.num) || '#228be6';
-    // 使用标签左侧位置
+    // 使用标签左侧位置，减小偏移量使小球更靠近数字
     const singleLineX = singleNumber.labelLeftX - 10; 
     
     // 不显示文本标记，只保留高亮指示器
@@ -357,7 +375,7 @@ export function renderAllBinaryXorOperation(
   // 添加"Result:"标签 - 与结果行垂直对齐
   svg
     .append('text')
-    .attr('x', 50) // 固定在左侧位置
+    .attr('x', leftLabelWidth - 40) // 根据新的左侧宽度调整位置
     .attr('y', resultCenterY) // 使用结果行的中心Y坐标
     .attr('dominant-baseline', 'middle') // 确保垂直居中
     .attr('text-anchor', 'end') // 水平右对齐
@@ -372,8 +390,11 @@ export function renderAllBinaryXorOperation(
       return (acc >>> 0) ^ (curr >>> 0);
     }, 0);
     
+    // 确保最终结果也被视为无符号整数
+    const unsignedResult = result >>> 0;
+    
     // 将数值放在与其他行数字相同的位置
-    renderNumberLabel(svg, result, startX - 10, resultCenterY, '#40c057');
+    renderNumberLabel(svg, unsignedResult, startX - 10, resultCenterY, '#40c057', leftLabelWidth);
   }
   
   // 使用动画
@@ -395,8 +416,9 @@ export function renderAllBinaryXorOperation(
           resultCenterY,
           adjustedDigitWidth,
           '#40c057',
-          false,  // 不需要入场动画
-          true    // 是结果行
+          true, // 添加动画
+          true, // 标记为结果行
+          maxLength // 传入最大长度参数，确保结果行也右对齐
         );
       }
     );
@@ -406,11 +428,12 @@ export function renderAllBinaryXorOperation(
       svg,
       resultBinary,
       startX,
-      resultCenterY, // 使用中心坐标
+      resultCenterY,
       adjustedDigitWidth,
       '#40c057',
-      false,
-      true
+      true, // 添加动画
+      true, // 标记为结果行
+      maxLength // 传入最大长度参数，确保结果行也右对齐
     );
   }
 }
@@ -421,10 +444,14 @@ function renderNumberLabel(
   value: number,
   x: number,
   y: number, // 直接使用中心Y坐标
-  color: string
+  color: string,
+  labelAreaWidth: number = 150 // 默认标签区域宽度
 ): void {
+  // 确保数值被视为无符号整数
+  const unsignedValue = value >>> 0;
+  
   // 转换为十进制字符串
-  const displayValue = value.toString();
+  const displayValue = unsignedValue.toString();
   
   // 根据数字长度动态计算字体大小
   let fontSize = 14; // 默认字体大小
@@ -432,9 +459,12 @@ function renderNumberLabel(
     fontSize = Math.max(14 - (displayValue.length - 8) * 0.5, 7);
   }
   
+  // 确保数字标签有足够空间显示
+  const labelX = Math.max(x, labelAreaWidth - 50);
+  
   svg
     .append('text')
-    .attr('x', x)
+    .attr('x', labelX)
     .attr('y', y) // 直接使用传入的中心Y坐标
     .attr('font-size', `${fontSize}px`)
     .attr('dominant-baseline', 'middle') // 确保垂直居中
@@ -862,4 +892,181 @@ function createImpactEffectForMeteor(
   setTimeout(() => {
     impactGroup.remove();
   }, 600);
+}
+
+/**
+ * 验证输入数据是否满足"一个元素出现一次，其他元素都出现两次"的条件
+ */
+function validateSingleNumberData(numbers: number[]): { valid: boolean; errorMessage?: string } {
+  // 统计每个数字出现的次数
+  const countMap = new Map<number, number>();
+  
+  for (const num of numbers) {
+    countMap.set(num, (countMap.get(num) || 0) + 1);
+  }
+  
+  // 检查是否只有一个元素出现一次，其他元素都出现两次
+  let singleElements: number[] = [];
+  let invalidElements: string[] = [];
+  
+  for (const [num, count] of countMap.entries()) {
+    if (count === 1) {
+      singleElements.push(num);
+    } else if (count !== 2) {
+      invalidElements.push(`${num} (出现 ${count} 次)`);
+    }
+  }
+  
+  if (singleElements.length !== 1 || invalidElements.length > 0) {
+    let errorMsg = '输入不符合要求: ';
+    
+    if (singleElements.length === 0) {
+      errorMsg += '没有只出现一次的元素';
+    } else if (singleElements.length > 1) {
+      errorMsg += `有 ${singleElements.length} 个元素只出现一次: ${singleElements.join(', ')}`;
+    }
+    
+    if (invalidElements.length > 0) {
+      errorMsg += (singleElements.length !== 1 ? '，并且' : '') + `以下元素出现次数不是两次：${invalidElements.join(', ')}`;
+    }
+    
+    return { valid: false, errorMessage: errorMsg };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * 在SVG上渲染验证错误信息
+ */
+function renderValidationError(
+  svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+  width: number,
+  height: number,
+  errorMessage: string = '数据验证失败'
+): void {
+  // 设置SVG的viewBox以确保错误信息能够正确显示
+  svg.attr('viewBox', `0 0 ${width} ${height}`);
+  
+  // 创建一个警告图标
+  const warningIcon = svg.append('g')
+    .attr('transform', `translate(${width / 2 - 100}, ${height / 3})`);
+  
+  // 画一个警告三角形
+  warningIcon.append('path')
+    .attr('d', 'M25,0 L50,45 L0,45 Z')
+    .attr('fill', '#ffcc00')
+    .attr('stroke', '#ff8800')
+    .attr('stroke-width', '2');
+  
+  // 添加感叹号
+  warningIcon.append('text')
+    .attr('x', '25')
+    .attr('y', '36')
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '30')
+    .attr('font-weight', 'bold')
+    .attr('fill', '#000')
+    .text('!');
+  
+  // 添加错误消息
+  svg.append('text')
+    .attr('x', width / 2)
+    .attr('y', height / 2)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '16')
+    .attr('fill', '#ff0000')
+    .text(errorMessage);
+  
+  // 添加提示信息
+  svg.append('text')
+    .attr('x', width / 2)
+    .attr('y', height / 2 + 30)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '14')
+    .attr('fill', '#666')
+    .text('请提供符合"一个元素出现一次，其他元素都出现两次"的数据');
+}
+
+/**
+ * 渲染二进制位索引
+ * @param svg SVG元素
+ * @param startX 起始X坐标
+ * @param y Y坐标
+ * @param length 二进制位长度
+ * @param digitWidth 位宽度
+ */
+function renderBitIndices(
+  svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+  startX: number,
+  y: number,
+  length: number,
+  digitWidth: number
+): void {
+  // 创建一个组用于位索引
+  // 计算与二进制位相同的间距逻辑
+  const spacing = length > 20 
+    ? Math.max(digitWidth * 0.9, 8) 
+    : Math.max(digitWidth, 10);
+  const indicesGroup = svg.append('g')
+    .attr('class', 'bit-indices');
+    
+  // 先渲染二进制位格的位置指示线，确保对齐
+  for (let i = 0; i < length; i++) {
+    // 计算与二进制位格相同的X坐标
+    
+    const xPos = startX + i * spacing + spacing / 2;
+    
+    // 添加细微的垂直辅助线帮助确认对齐
+    indicesGroup.append('line')
+      .attr('x1', xPos)
+      .attr('y1', y - 20)
+      .attr('x2', xPos)
+      .attr('y2', y - 1)
+      .attr('stroke', '#e9ecef')
+      .attr('stroke-width', 0.5)
+      .attr('stroke-dasharray', '1,1');
+  }
+  
+  // 添加背景矩形
+  indicesGroup.append('rect')
+    .attr('x', startX)
+    .attr('y', y - 20)
+    .attr('width', length * spacing)
+    .attr('height', 24)
+    .attr('fill', '#f8f9fa')
+    .attr('fill-opacity', 0.5)
+    .attr('rx', 2);
+  
+  // 确定合适的字体大小，确保所有数字能正确对齐显示
+  const fontSize = length > 28 ? 10 : length > 24 ? 12 : length > 20 ? 14 : 16;
+  
+  // 渲染每个位置的索引
+  for (let i = 0; i < length; i++) {
+    // 位索引（从右到左）
+    const bitIndex = length - i - 1;
+    
+    // 使用与二进制位完全相同的X坐标计算
+    
+    const xPos = startX + i * spacing + spacing / 2;
+    
+    // 索引Y坐标
+    const yPos = y - 10;
+    
+    // 根据索引位置的重要性选择不同的颜色
+    const color = bitIndex % 8 === 0 ? '#525252' : 
+                 bitIndex % 4 === 0 ? '#7a7a7a' : '#adb5bd';
+    
+    // 渲染数字，确保对齐和清晰
+    indicesGroup.append('text')
+      .attr('x', xPos)
+      .attr('y', yPos)
+      .attr('text-anchor', 'middle')  // 确保水平居中对齐
+      .attr('alignment-baseline', 'middle') // 确保垂直居中对齐
+      .attr('font-size', `${fontSize}px`)
+      .attr('font-family', 'monospace')
+      .attr('fill', color)
+      .attr('style', 'letter-spacing: -1px; font-weight: normal;')
+      .text(bitIndex);
+  }
 } 

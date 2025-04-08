@@ -36,44 +36,46 @@ export const renderBinaryXorOperation = (
   addDynamicBackground(svg, width);
   
   // 计算十进制值（用于显示在左侧）
-  const firstDecimal = parseInt(firstBinary, 2);
-  const secondDecimal = parseInt(secondBinary, 2);
-  const resultDecimal = parseInt(resultBinary, 2);
+  const firstDecimal = parseInt(firstBinary, 2) >>> 0;
+  const secondDecimal = parseInt(secondBinary, 2) >>> 0;
+  const resultDecimal = parseInt(resultBinary, 2) >>> 0;
   
   // 第一行：添加十进制值标签和第一个操作数的二进制
   addDecimalLabel(svg, firstDecimal, startX - 50, binY - 15, '#4dabf7');
-  renderBinaryRow(svg, firstBinary, startX, binY - 15, digitWidth, '#4dabf7', true);
-
-  // XOR 符号
-  const xorSymbol = svg.append('text')
-    .attr('class', 'xor-symbol')
-    .attr('x', width / 2)
-    .attr('y', binY + 20)
-    .text('^')
-    .style('font-size', '24px')
-    .style('font-weight', 'bold')
-    .style('fill', '#ff6b6b');
-    
-  // 添加闪烁效果
-  startGlowingEffect(xorSymbol);
+  renderBinaryRow(svg, firstBinary, startX, binY - 15, digitWidth, '#4dabf7', true, false, maxLength);
+  
+  // 添加XOR符号
+  svg.append('text')
+    .attr('x', startX - 30)
+    .attr('y', binY + 15)
+    .attr('text-anchor', 'end')
+    .attr('dominant-baseline', 'middle')
+    .attr('font-size', '16px')
+    .attr('fill', '#212529')
+    .text('⊕');
   
   // 第二行：添加十进制值标签和第二个操作数的二进制
-  addDecimalLabel(svg, secondDecimal, startX - 50, binY + 30, '#ff6b6b');
-  renderBinaryRow(svg, secondBinary, startX, binY + 30, digitWidth, '#ff6b6b', true);
-
-  // = 符号
-  svg.append('text')
-    .attr('class', 'description-text')
-    .attr('x', width / 2)
-    .attr('y', binY + 65)
-    .text('=')
-    .style('font-size', '24px')
-    .style('font-weight', 'bold')
-    .style('fill', '#40c057');
+  addDecimalLabel(svg, secondDecimal, startX - 50, binY + 15, '#ff6b6b');
+  renderBinaryRow(svg, secondBinary, startX, binY + 15, digitWidth, '#ff6b6b', true, false, maxLength);
   
-  // 第三行：添加十进制值标签和结果的二进制
-  addDecimalLabel(svg, resultDecimal, startX - 50, binY + 75, '#40c057');
-  renderBinaryRow(svg, resultBinary, startX, binY + 75, digitWidth, '#40c057', false, true);
+  // 添加一条水平分隔线
+  svg.append('line')
+    .attr('x1', startX - 50)
+    .attr('y1', binY + 35)
+    .attr('x2', startX + (maxLength * bitSpacing) + 20)
+    .attr('y2', binY + 35)
+    .attr('stroke', '#adb5bd')
+    .attr('stroke-width', 1)
+    .attr('stroke-dasharray', '4,2');
+  
+  // 结果行：添加十进制值标签和结果的二进制
+  addDecimalLabel(svg, resultDecimal, startX - 50, binY + 60, '#40c057');
+  renderBinaryRow(svg, resultBinary, startX, binY + 60, digitWidth, '#40c057', true, true, maxLength);
+  
+  // 启动发光效果
+  setTimeout(() => {
+    startGlowingEffect(svg);
+  }, 1000);
 };
 
 /**
@@ -91,6 +93,9 @@ const addDecimalLabel = (
   y: number,
   color: string
 ): void => {
+  // 确保值被视为无符号整数
+  const unsignedValue = value >>> 0;
+  
   // 添加十进制数值标签
   svg.append('text')
     .attr('x', x)
@@ -100,7 +105,7 @@ const addDecimalLabel = (
     .attr('font-size', '18px')
     .attr('font-weight', 'bold')
     .attr('fill', color)
-    .text(value)
+    .text(unsignedValue)
     .transition()
     .duration(500)
     .attr('opacity', 1);
