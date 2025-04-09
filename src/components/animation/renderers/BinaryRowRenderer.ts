@@ -29,9 +29,102 @@ export const renderBinaryRow = (
   // 确保有滤镜
   createGlowFilter(svg);
   
-  // 为行创建渐变 - 1使用行颜色，0使用淡灰色
-  create3DGradient(svg, `row-gradient-one-${color.replace('#', '')}`, color); // 1的渐变
-  create3DGradient(svg, `row-gradient-zero`, '#e9ecef'); // 0的渐变（淡灰色）
+  // 为行创建更精美的渐变 - 1使用行颜色，0使用柔和的灰色渐变
+  // 为1创建更丰富的渐变
+  const oneGradientId = `row-gradient-one-${color.replace('#', '')}`;
+  const zeroGradientId = `row-gradient-zero`;
+  
+  // 创建高级渐变 - 为1创建光泽渐变
+  const defs = svg.select('defs').empty() ? svg.append('defs') : svg.select('defs');
+  
+  // 1的渐变 - 使用多色渐变效果
+  const gradient1 = defs.append('linearGradient')
+    .attr('id', oneGradientId)
+    .attr('x1', '0%')
+    .attr('y1', '0%')
+    .attr('x2', '100%')
+    .attr('y2', '100%');
+  
+  // 提取颜色亮色和暗色版本
+  const baseRGB = d3.rgb(color);
+  const lightColor = d3.rgb(
+    Math.min(255, baseRGB.r + 50),
+    Math.min(255, baseRGB.g + 50),
+    Math.min(255, baseRGB.b + 50)
+  ).toString();
+  const darkColor = d3.rgb(
+    Math.max(0, baseRGB.r - 30),
+    Math.max(0, baseRGB.g - 30),
+    Math.max(0, baseRGB.b - 30)
+  ).toString();
+  
+  // 添加多色渐变
+  gradient1.append('stop')
+    .attr('offset', '0%')
+    .attr('stop-color', lightColor);
+  
+  gradient1.append('stop')
+    .attr('offset', '50%')
+    .attr('stop-color', color);
+  
+  gradient1.append('stop')
+    .attr('offset', '100%')
+    .attr('stop-color', darkColor);
+  
+  // 0的渐变 - 使用舒适的灰度渐变
+  const gradient0 = defs.append('linearGradient')
+    .attr('id', zeroGradientId)
+    .attr('x1', '0%')
+    .attr('y1', '0%')
+    .attr('x2', '100%')
+    .attr('y2', '100%');
+  
+  gradient0.append('stop')
+    .attr('offset', '0%')
+    .attr('stop-color', '#f8f9fa');
+  
+  gradient0.append('stop')
+    .attr('offset', '50%')
+    .attr('stop-color', '#e9ecef');
+  
+  gradient0.append('stop')
+    .attr('offset', '100%')
+    .attr('stop-color', '#dee2e6');
+  
+  // 创建更高质量的阴影滤镜
+  const shadowFilterId = 'high-quality-shadow';
+  if (svg.select(`#${shadowFilterId}`).empty()) {
+    const shadowFilter = defs.append('filter')
+      .attr('id', shadowFilterId)
+      .attr('x', '-50%')
+      .attr('y', '-50%')
+      .attr('width', '200%')
+      .attr('height', '200%');
+    
+    // 创建模糊阴影
+    shadowFilter.append('feGaussianBlur')
+      .attr('in', 'SourceAlpha')
+      .attr('stdDeviation', '2')
+      .attr('result', 'blur');
+    
+    // 偏移阴影
+    shadowFilter.append('feOffset')
+      .attr('in', 'blur')
+      .attr('dx', '0.5')
+      .attr('dy', '0.5')
+      .attr('result', 'offsetBlur');
+    
+    // 增加阴影的不透明度
+    shadowFilter.append('feComponentTransfer')
+      .append('feFuncA')
+        .attr('type', 'linear')
+        .attr('slope', '0.5'); // 控制阴影强度
+    
+    // 将原图与阴影合成
+    const feMerge = shadowFilter.append('feMerge');
+    feMerge.append('feMergeNode');
+    feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+  }
   
   // 根据二进制长度和每个位的宽度自动调整尺寸
   
@@ -60,24 +153,27 @@ export const renderBinaryRow = (
     const x = startX + alignOffset + i * spacing + spacing / 2;
     const isOne = digit === '1';
     
-    // 背景方块 - 1和0使用不同的背景色
+    // 增加圆角半径 - 让方块更现代化
+    const cornerRadius = Math.max(2, rectWidth * 0.2);
+    
+    // 背景方块 - 1和0使用不同的背景色，但都精美
     const rect = svg.append('rect')
       .attr('x', x - rectWidth / 2)
       .attr('y', rectStartY)
       .attr('width', rectWidth)
       .attr('height', rectHeight)
-      .attr('fill', isOne ? `url(#row-gradient-one-${color.replace('#', '')})` : `url(#row-gradient-zero)`) // 1用行颜色，0用淡灰色
-      .attr('stroke', '#adb5bd') 
+      .attr('fill', isOne ? `url(#${oneGradientId})` : `url(#${zeroGradientId})`) // 使用优化后的渐变
+      .attr('stroke', isOne ? darkColor : '#ced4da') 
       .attr('stroke-width', binary.length > 24 ? 0.5 : (binary.length > 16 ? 0.8 : 1.0))
-      .attr('rx', Math.max(1, rectWidth * 0.1))
-      .attr('ry', Math.max(1, rectHeight * 0.1));
+      .attr('rx', cornerRadius) // 增加圆角半径
+      .attr('ry', cornerRadius);
     
-    // 给所有方块添加轻微的阴影效果
-    rect.style('filter', 'url(#glow)');
+    // 应用高质量阴影效果
+    rect.style('filter', `url(#${shadowFilterId})`);
     
-    // 为1添加边框效果，0不添加特殊边框
+    // 为1添加增强的边框效果，为0添加轻微的边框效果
     if (isOne) {
-      // 为1的方块添加呼吸边框效果
+      // 为1的方块添加更明显的呼吸边框效果
       addBreathingBorder(rect, color, binary.length > 24 ? 0.8 : (binary.length > 16 ? 1.2 : 1.5));
       
       // 如果是结果行且是1，添加特殊效果
@@ -86,6 +182,9 @@ export const renderBinaryRow = (
         const effectRadius = Math.min(20, rectWidth * 1.8);
         addRadialEffect(svg, x, y, color, effectRadius);
       }
+    } else {
+      // 为0添加更柔和的呼吸边框效果
+      addBreathingBorder(rect, '#ced4da', binary.length > 24 ? 0.2 : (binary.length > 16 ? 0.3 : 0.4));
     }
     
     // 所有方块的动画效果（0和1都有，但效果略有不同）
@@ -96,14 +195,14 @@ export const renderBinaryRow = (
         .transition()
         .delay(animationDelay)
         .duration(300)
-        .style('opacity', isOne ? 1 : 0.8) // 1完全不透明，0略微透明
+        .style('opacity', isOne ? 1 : 0.9) // 0也接近全不透明，提高可见度
         .attr('transform', isOne ? 'translate(0, -1)' : 'translate(0, 0)') // 只有1有上移效果
         .transition()
         .duration(200)
         .attr('transform', 'translate(0, 0)');
     }
       
-    // 数字文本 - 使用不同的字体样式区分0和1
+    // 数字文本 - 使用更优雅的字体样式
     const text = svg.append('text')
       .attr('x', x)
       .attr('y', y)
@@ -111,7 +210,8 @@ export const renderBinaryRow = (
       .attr('dominant-baseline', 'middle')
       .attr('font-size', `${fontSize}px`)
       .attr('font-weight', isOne ? 'bold' : 'normal')
-      .attr('fill', isOne ? 'white' : '#495057') // 1白色，0灰色
+      .attr('fill', isOne ? 'white' : '#495057') // 1白色，0深灰色
+      .style('filter', 'url(#glow)')
       .text(digit);
     
     // 给数字添加动画效果
@@ -122,7 +222,7 @@ export const renderBinaryRow = (
         .transition()
         .delay(animationDelay)
         .duration(300)
-        .style('opacity', isOne ? 1 : 0.8);
+        .style('opacity', isOne ? 1 : 0.9);
     }
   }
 };
