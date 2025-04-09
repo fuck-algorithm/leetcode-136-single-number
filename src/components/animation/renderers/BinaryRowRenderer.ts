@@ -64,22 +64,32 @@ export const renderBinaryRow = (
     const isOne = digit === '1';
     const gradientId = `gradient-${i}-${color.replace('#', '')}`;
     
+    // 为每一个方块创建一个唯一ID，包括0和1
+    const boxId = `box-${i}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // 为0创建一个淡色渐变
+    if (!isOne) {
+      create3DGradient(svg, `zero-gradient-${boxId}`, '#e9ecef');
+    }
+    
     // 背景方块
     const rect = svg.append('rect')
       .attr('x', x - rectWidth / 2)
       .attr('y', rectStartY)
       .attr('width', rectWidth)
       .attr('height', rectHeight)
-      .attr('fill', isOne ? `url(#${gradientId})` : '#e9ecef')
-      .attr('stroke', '#adb5bd')
+      .attr('fill', isOne ? `url(#${gradientId})` : `url(#zero-gradient-${boxId})`)
+      .attr('stroke', isOne ? '#adb5bd' : '#d0d0d0')
       .attr('stroke-width', binary.length > 24 ? 0.4 : (binary.length > 16 ? 0.7 : 1))
       .attr('rx', Math.max(1, rectWidth * 0.1))
       .attr('ry', Math.max(1, rectHeight * 0.1));
     
+    // 给所有方块添加轻微的阴影效果
+    rect.style('filter', 'url(#glow)');
+    
     // 添加光效和3D变换
     if (isOne) {
-      rect.style('filter', 'url(#glow)')
-        .attr('transform', 'translate(0, 0)');
+      rect.attr('transform', 'translate(0, 0)');
       
       // 如果是结果行，添加特殊效果
       if (isResult) {
@@ -94,6 +104,9 @@ export const renderBinaryRow = (
       else if (animate) {
         // 为动画中的1添加呼吸发光边框效果，但使用较小的边框宽度
         addBreathingBorder(rect, color, binary.length > 24 ? 0.5 : (binary.length > 16 ? 0.8 : 1));
+      } else {
+        // 为普通的1添加较弱的呼吸边框效果
+        addBreathingBorder(rect, color, binary.length > 24 ? 0.3 : (binary.length > 16 ? 0.5 : 0.7));
       }
       
       // 如果需要动画效果
@@ -110,6 +123,21 @@ export const renderBinaryRow = (
           .duration(200)
           .attr('transform', 'translate(0, 0)');
       }
+    } else {
+      // 为0添加淡色的呼吸边框效果
+      const zeroColor = '#adb5bd';
+      addBreathingBorder(rect, zeroColor, binary.length > 24 ? 0.2 : (binary.length > 16 ? 0.3 : 0.4));
+      
+      // 给0添加更微妙的光效和动画
+      if (animate) {
+        const animationDelay = Math.min(i * 50, 300);
+        
+        rect.style('opacity', 0)
+          .transition()
+          .delay(animationDelay)
+          .duration(200)
+          .style('opacity', 1);
+      }
     }
       
     // 数字文本
@@ -123,15 +151,23 @@ export const renderBinaryRow = (
       .attr('fill', isOne ? 'white' : '#495057')
       .text(digit);
     
-    // 给数字1添加动画效果
-    if (isOne && animate) {
+    // 给数字添加动画效果，1和0都有动画，但样式不同
+    if (animate) {
       const animationDelay = Math.min(i * 70, 400);
-        
-      text.style('opacity', 0)
-        .transition()
-        .delay(animationDelay)
-        .duration(300)
-        .style('opacity', 1);
+      
+      if (isOne) {
+        text.style('opacity', 0)
+          .transition()
+          .delay(animationDelay)
+          .duration(300)
+          .style('opacity', 1);
+      } else {
+        text.style('opacity', 0)
+          .transition()
+          .delay(animationDelay)
+          .duration(200)
+          .style('opacity', 0.8);
+      }
     }
   }
 };
