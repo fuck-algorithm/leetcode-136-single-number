@@ -2,6 +2,13 @@ import * as d3 from 'd3';
 import { renderBinaryRow } from './BinaryRowRenderer';
 
 /**
+ * 计算适当的间距
+ */
+function getSpacing(length: number, digitWidth: number): number {
+  return Math.max(digitWidth * 1.05, 10); // 间距略大于宽度，至少10px
+}
+
+/**
  * 渲染全部数字异或操作的二进制表示动画
  * @param svg SVG元素
  * @param width SVG宽度 
@@ -68,8 +75,8 @@ export const renderAllBinaryXorOperation = (
   svg.attr('viewBox', `0 0 ${width} ${totalHeight}`);
   
   // 计算左右边距和标签位置，使内容居中
-  const leftLabelWidth = 200; // 减小左侧标签宽度
-  const rightMargin = 20; // 增加右侧边距，给更多空间
+  const leftLabelWidth = 180; // 左侧标签宽度
+  const rightMargin = 5; // 减小右侧边距，尽量利用全部宽度
   
   // 计算整个内容的宽度，包括标签和二进制表示
   const contentWidth = width - leftLabelWidth - rightMargin;
@@ -77,16 +84,25 @@ export const renderAllBinaryXorOperation = (
   // 精确计算每个数字位的宽度，确保填满但不溢出
   const calculatedDigitWidth = contentWidth / maxLength;
   
-  // 调整数字宽度以适应屏幕，但设置上限以防止过大
-  const adjustedDigitWidth = Math.min(
-    Math.max(calculatedDigitWidth, 15), // 至少15px宽
-    30 // 增加最大宽度上限
+  // 调整数字宽度以适应屏幕，根据可用空间动态计算
+  let adjustedDigitWidth = Math.max(
+    Math.min(calculatedDigitWidth * 0.95, 40), // 最大宽度限制为40px
+    15 // 最小宽度限制为15px
   );
   
-  // 考虑到调整后的宽度可能导致总宽度变化，重新计算起始点
-  const totalContentWidth = adjustedDigitWidth * maxLength;
-  // 减少居中偏移量，使内容更靠右显示
-  const startX = leftLabelWidth + 10; // 减小左侧空白
+  // 重新计算间距，确保内容刚好填满可用宽度
+  const baseSpacing = adjustedDigitWidth * 1.05; // 间距略大于宽度
+  
+  // 确保所有内容不会溢出
+  const totalContentWidth = baseSpacing * maxLength;
+  if (totalContentWidth > contentWidth) {
+    // 如果计算出的总宽度超出可用宽度，进一步调整
+    const scaleFactor = contentWidth / totalContentWidth;
+    adjustedDigitWidth *= scaleFactor;
+  }
+  
+  // 计算起始点
+  const startX = leftLabelWidth + 5; // 左侧起始点
   
   // 创建数字到颜色的映射，相同数字使用相同颜色
   const numberColorMap = new Map<number, string>();
@@ -179,9 +195,7 @@ export const renderAllBinaryXorOperation = (
     for (let i = 0; i < binary.length; i++) {
       if (binary[i] === '1') {
         // 计算与二进制位相同的X坐标，包含右对齐偏移量和spacing/2
-        const spacing = binary.length > 20 
-          ? Math.max(adjustedDigitWidth * 0.9, 8) 
-          : Math.max(adjustedDigitWidth, 10);
+        const spacing = getSpacing(binary.length, adjustedDigitWidth);
         const alignOffset = maxLength !== undefined ? spacing * (maxLength - binary.length) : 0;
         const xPos = startX + alignOffset + i * spacing + spacing / 2;
         
@@ -370,9 +384,7 @@ export const renderAllBinaryXorOperation = (
   for (let i = 0; i < resultBinary.length; i++) {
     if (resultBinary[i] === '1') {
       // 计算与二进制位相同的X坐标，确保与源位置计算一致
-      const spacing = resultBinary.length > 20 
-        ? Math.max(adjustedDigitWidth * 0.9, 8) 
-        : Math.max(adjustedDigitWidth, 10);
+      const spacing = getSpacing(resultBinary.length, adjustedDigitWidth);
       const alignOffset = maxLength !== undefined ? spacing * (maxLength - resultBinary.length) : 0;
       const xPos = startX + alignOffset + i * spacing + spacing / 2;
       
@@ -1022,10 +1034,7 @@ function renderBitIndices(
   digitWidth: number
 ): void {
   // 创建一个组用于位索引
-  // 计算与二进制位相同的间距逻辑
-  const spacing = length > 20 
-    ? Math.max(digitWidth * 0.9, 8) 
-    : Math.max(digitWidth, 10);
+  const spacing = getSpacing(length, digitWidth);
   const indicesGroup = svg.append('g')
     .attr('class', 'bit-indices');
     
@@ -1081,7 +1090,7 @@ function renderBitIndices(
       .attr('y', yPos)
       .attr('text-anchor', 'middle')  // 确保水平居中对齐
       .attr('alignment-baseline', 'middle') // 确保垂直居中对齐
-      .attr('font-size', `${fontSize}px`)
+      .attr('font-size', `${Math.min(fontSize * 1.2, 18)}px`) // 增加字体大小
       .attr('font-family', 'monospace')
       .attr('fill', color)
       .attr('style', 'letter-spacing: -1px; font-weight: normal;')

@@ -42,9 +42,7 @@ export const renderBinaryRow = (
   const fontSize = Math.max(8, Math.min(14, digitWidth * 0.7));
   
   // 计算合适的间距，确保视觉效果平衡
-  const spacing = binary.length > 20 
-    ? Math.max(digitWidth * 0.9, 8) 
-    : Math.max(digitWidth, 10);
+  const spacing = Math.max(digitWidth * 1.05, 10); // 间距略大于宽度，至少10px
   
   // 计算方块尺寸，保持适当的宽高比
   // 对于更长的二进制，适当减小尺寸以适应空间
