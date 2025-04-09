@@ -41,38 +41,28 @@ export const renderAllBinaryXorOperation = (
   // 二进制位最大显示数量限制 - 防止显示太多位导致溢出
   const maxDisplayDigits = 32; // 限制最大显示的二进制位数
   
-  // 计算最大二进制长度
-  let binaryStrings = numbers.map(n => convertToBinary(n));
+  // 添加标志，确保结果行只渲染一次
+  let resultRendered = false;
+
+  // 根据输入调整行高和间距
+  const resultValue = showDecimal ? numbers.reduce((acc, curr) => acc ^ curr, 0) : undefined;
   
-  // 修复：使用无符号32位整数操作计算异或结果
-  let resultBinary = convertToBinary(
-    numbers.reduce((acc, curr) => {
-      // 使用无符号右移0位来确保以32位无符号整数方式处理
-      return (acc >>> 0) ^ (curr >>> 0);
-    }, 0) >>> 0 // 确保最终结果也被视为无符号整数
-  );
+  // 创建一个组来存放所有的元素 - 用于整体移动和操作
+  const mainGroup = svg.append('g').attr('class', 'main-group');
   
-  // 如果二进制位数太多，截取最后的N位
-  if (Math.max(...binaryStrings.map(b => b.length), resultBinary.length) > maxDisplayDigits) {
-    binaryStrings = binaryStrings.map(b => b.slice(-maxDisplayDigits)); // 取最后32位
-    // 结果二进制也需要截取
-    resultBinary = resultBinary.slice(-maxDisplayDigits);
-  }
+  // 设置行高和垂直间距，根据数量动态调整
+  const rowHeight = 30 - Math.min(5, Math.max(0, numbers.length - 4)); // 输入多时略微减小行高
+  const verticalSpacing = 10 - Math.min(3, Math.max(0, numbers.length - 5)); // 输入多时略微减小间距
   
-  const maxLength = Math.min(
-    Math.max(...binaryStrings.map(b => b.length), resultBinary.length),
-    maxDisplayDigits
-  );
+  // 用于XOR结果的额外空间
+  const extraSpaceForResult = rowHeight + 30; // 保持一定的间隔
   
-  // 行高和间距
-  const rowHeight = 22;
-  const verticalSpacing = 2;
+  // 计算总共需要的高度 (所有输入行 + 结果行 + 额外空间)
   const totalInputHeight = numbers.length * (rowHeight + verticalSpacing);
-  const extraSpaceForResult = rowHeight + 15;
   
-  // 计算SVG的总高度
+  // 设置SVG高度，确保有足够的空间
   const totalHeight = totalInputHeight + extraSpaceForResult;
-  svg.attr('viewBox', `0 0 ${width} ${totalHeight}`);
+  svg.attr('height', totalHeight);
   
   // 计算左右边距和标签位置，使内容居中
   const leftLabelWidth = 180; // 左侧标签宽度
@@ -82,7 +72,7 @@ export const renderAllBinaryXorOperation = (
   const contentWidth = width - leftLabelWidth - rightMargin;
   
   // 精确计算每个数字位的宽度，确保填满但不溢出
-  const calculatedDigitWidth = contentWidth / maxLength;
+  const calculatedDigitWidth = contentWidth / maxDisplayDigits;
   
   // 调整数字宽度以适应屏幕，根据可用空间动态计算
   let adjustedDigitWidth = Math.max(
@@ -94,7 +84,7 @@ export const renderAllBinaryXorOperation = (
   const baseSpacing = adjustedDigitWidth * 1.05; // 间距略大于宽度
   
   // 确保所有内容不会溢出
-  const totalContentWidth = baseSpacing * maxLength;
+  const totalContentWidth = baseSpacing * maxDisplayDigits;
   if (totalContentWidth > contentWidth) {
     // 如果计算出的总宽度超出可用宽度，进一步调整
     const scaleFactor = contentWidth / totalContentWidth;
@@ -135,6 +125,75 @@ export const renderAllBinaryXorOperation = (
     labelX: number,    // 标签右侧位置
     labelLeftX: number // 添加标签左侧位置
   }> = [];
+  
+  // 使用提供的转换函数或默认的convertToBinary函数
+  const toBinaryString = (n: number) => {
+    // 获取数字的二进制表示
+    // 对于负数，使用无符号右移0位操作，强制转换为32位无符号整数表示
+    // 这样可以得到正确的二进制补码表示，不会有负号出现
+    const binary = (n >>> 0).toString(2);
+    
+    // 确保二进制位数至少为32位或与当前最长的二进制位数一致
+    // 这样所有数字都能完整显示所有有效位
+    return binary.padStart(Math.max(32, binary.length), '0');
+  };
+  
+  // 将输入的十进制数字转换为二进制字符串
+  let binaryStrings = numbers.map(n => toBinaryString(n));
+  
+  // 找到最长的二进制字符串长度，用于统一显示
+  const maxLength = Math.max(...binaryStrings.map(s => s.length));
+  
+  // 计算XOR结果的二进制表示
+  let resultBinary = toBinaryString(
+    resultValue !== undefined ? resultValue : 
+    numbers.reduce((acc, curr) => acc ^ curr, 0)
+  );
+  
+  // 如果二进制位数太多，截取最后的N位
+  if (Math.max(...binaryStrings.map(b => b.length), resultBinary.length) > maxDisplayDigits) {
+    binaryStrings = binaryStrings.map(b => b.slice(-maxDisplayDigits)); // 取最后32位
+    // 结果二进制也需要截取
+    resultBinary = resultBinary.slice(-maxDisplayDigits);
+  }
+  
+  // 计算结果行的垂直位置 - 固定在所有输入行之后
+  // 使用实际输入行数量计算高度，避免因行高变化导致的位置计算问题
+  const lastInputY = (numbers.length - 1) * (rowHeight + verticalSpacing) + rowHeight / 2;
+  const resultGap = 30; // 固定间隔
+  const resultY = lastInputY + rowHeight / 2 + resultGap;
+  const resultCenterY = resultY + rowHeight / 2;
+  
+  // 为结果创建目标位置 - 结果中1的位置
+  for (let i = 0; i < resultBinary.length; i++) {
+    if (resultBinary[i] === '1') {
+      // 计算与二进制位相同的X坐标，确保与源位置计算一致
+      const spacing = getSpacing(resultBinary.length, adjustedDigitWidth);
+      const alignOffset = maxLength !== undefined ? spacing * (maxLength - resultBinary.length) : 0;
+      const xPos = startX + alignOffset + i * spacing + spacing / 2;
+      
+      targetPositions.push({
+        x: xPos,
+        y: resultCenterY // 使用中心坐标
+      });
+    }
+  }
+  
+  // 添加"Result:"标签 - 与结果行垂直对齐
+  svg
+    .append('text')
+    .attr('x', leftLabelWidth - 40) // 根据新的左侧宽度调整位置
+    .attr('y', resultCenterY) // 使用结果行的中心Y坐标
+    .attr('dominant-baseline', 'middle') // 确保垂直居中
+    .attr('text-anchor', 'end') // 水平右对齐
+    .attr('fill', '#40c057')
+    .text('Result:');
+  
+  // 显示十进制结果值 - 与结果行垂直对齐
+  if (showDecimal) {
+    // 将数值放在与其他行数字相同的位置
+    renderNumberLabel(svg, numbers.reduce((acc, curr) => acc ^ curr, 0), startX - 10, resultCenterY, '#40c057', leftLabelWidth);
+  }
   
   // 渲染输入的二进制表示
   binaryStrings.forEach((binary, index) => {
@@ -376,50 +435,6 @@ export const renderAllBinaryXorOperation = (
       });
   }
   
-  // 结果行的Y坐标 - 也使用中心点计算
-  const resultY = totalInputHeight;
-  const resultCenterY = resultY + rowHeight / 2;
-  
-  // 为结果创建目标位置 - 结果中1的位置
-  for (let i = 0; i < resultBinary.length; i++) {
-    if (resultBinary[i] === '1') {
-      // 计算与二进制位相同的X坐标，确保与源位置计算一致
-      const spacing = getSpacing(resultBinary.length, adjustedDigitWidth);
-      const alignOffset = maxLength !== undefined ? spacing * (maxLength - resultBinary.length) : 0;
-      const xPos = startX + alignOffset + i * spacing + spacing / 2;
-      
-      targetPositions.push({
-        x: xPos,
-        y: resultCenterY // 使用中心坐标
-      });
-    }
-  }
-  
-  // 添加"Result:"标签 - 与结果行垂直对齐
-  svg
-    .append('text')
-    .attr('x', leftLabelWidth - 40) // 根据新的左侧宽度调整位置
-    .attr('y', resultCenterY) // 使用结果行的中心Y坐标
-    .attr('dominant-baseline', 'middle') // 确保垂直居中
-    .attr('text-anchor', 'end') // 水平右对齐
-    .attr('fill', '#40c057')
-    .text('Result:');
-  
-  // 显示十进制结果值 - 与结果行垂直对齐
-  if (showDecimal) {
-    // 计算结果（使用前面已经计算好的resultBinary对应的值）
-    const result = numbers.reduce((acc, curr) => {
-      // 使用无符号右移0位来确保以32位无符号整数方式处理
-      return (acc >>> 0) ^ (curr >>> 0);
-    }, 0);
-    
-    // 确保最终结果也被视为无符号整数
-    const unsignedResult = result >>> 0;
-    
-    // 将数值放在与其他行数字相同的位置
-    renderNumberLabel(svg, unsignedResult, startX - 10, resultCenterY, '#40c057', leftLabelWidth);
-  }
-  
   // 使用动画
   const animate = true;
   if (animate) {
@@ -427,19 +442,15 @@ export const renderAllBinaryXorOperation = (
     console.log("动画准备:", {
       sourcePositions: sourcePositions.length,
       targetPositions: targetPositions.length,
+      resultY: resultY,
+      resultCenterY: resultCenterY,
+      lastInputY: lastInputY
     });
     
-    createMeteorAnimation(
-      svg,
-      sourcePositions,
-      targetPositions,
-      800,
-      adjustedDigitWidth,
-      '#40c057',
-      () => {
-        console.log("动画完成回调被调用");
-        
-        // 仅在动画完成后渲染结果
+    // 如果没有需要动画的位置，直接渲染结果
+    if (sourcePositions.length === 0 || targetPositions.length === 0) {
+      if (!resultRendered) {
+        resultRendered = true;
         renderBinaryRow(
           svg,
           resultBinary,
@@ -452,20 +463,54 @@ export const renderAllBinaryXorOperation = (
           maxLength // 传入最大长度参数，确保结果行也右对齐
         );
       }
-    );
+    } else {
+      createMeteorAnimation(
+        svg,
+        sourcePositions,
+        targetPositions,
+        800,
+        adjustedDigitWidth,
+        '#40c057',
+        () => {
+          console.log("动画完成回调被调用", {
+            resultRendered: resultRendered,
+            resultCenterY: resultCenterY
+          });
+          
+          // 仅在动画完成后且尚未渲染结果时渲染结果
+          if (!resultRendered) {
+            resultRendered = true;
+            renderBinaryRow(
+              svg,
+              resultBinary,
+              startX,
+              resultCenterY,
+              adjustedDigitWidth,
+              '#40c057',
+              true, // 添加动画
+              true, // 标记为结果行
+              maxLength // 传入最大长度参数，确保结果行也右对齐
+            );
+          }
+        }
+      );
+    }
   } else {
     // 如果不使用动画，直接渲染结果
-    renderBinaryRow(
-      svg,
-      resultBinary,
-      startX,
-      resultCenterY,
-      adjustedDigitWidth,
-      '#40c057',
-      true, // 添加动画
-      true, // 标记为结果行
-      maxLength // 传入最大长度参数，确保结果行也右对齐
-    );
+    if (!resultRendered) {
+      resultRendered = true;
+      renderBinaryRow(
+        svg,
+        resultBinary,
+        startX,
+        resultCenterY,
+        adjustedDigitWidth,
+        '#40c057',
+        true, // 添加动画
+        true, // 标记为结果行
+        maxLength // 传入最大长度参数，确保结果行也右对齐
+      );
+    }
   }
 }
 
