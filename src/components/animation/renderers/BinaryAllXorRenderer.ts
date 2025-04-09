@@ -8,6 +8,10 @@ function getSpacing(length: number, digitWidth: number): number {
   return Math.max(digitWidth * 1.05, 10); // 间距略大于宽度，至少10px
 }
 
+// 修改全局变量，使用number类型
+let activeAnimationFrames: number[] = [];
+let activeTimeouts: number[] = [];
+
 /**
  * 渲染全部数字异或操作的二进制表示动画
  * @param svg SVG元素
@@ -25,6 +29,10 @@ export const renderAllBinaryXorOperation = (
   animationDuration: number = 2000,
   showDecimal: boolean = true
 ): void => {
+  // 停止所有正在运行的动画
+  stopAllAnimations();
+  
+  // 清除SVG内容
   svg.selectAll('*').remove();
   
   if (numbers.length === 0) return;
@@ -495,7 +503,7 @@ export const renderAllBinaryXorOperation = (
         svg,
         sourcePositions,
         targetPositions,
-        800,
+        170, // 从500减少到170毫秒（再快3倍）
         adjustedDigitWidth,
         '#40c057',
         () => {
@@ -671,12 +679,12 @@ function convertToBinary(n: number): string {
   return binary.padStart(Math.max(32, binary.length), '0');
 }
 
-// 替换createMeteorAnimation函数
+// 修改整理数据的方式，创建所有可能的列
 function createMeteorAnimation(
   svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
   sourcePositions: Array<{ x: number; y: number; value: string; color: string }>,
   targetPositions: Array<{ x: number; y: number }>,
-  duration: number,
+  duration: number, // 传入的duration参数现在为500毫秒（0.5秒）
   digitWidth: number,
   color: string,
   onComplete: () => void
@@ -685,6 +693,7 @@ function createMeteorAnimation(
   console.log("开始流星动画:", {
     sourcePositions: sourcePositions.length,
     targetPositions: targetPositions.length,
+    duration: duration // 记录传入的持续时间参数
   });
   
   // 如果没有足够的位置数据，则不创建动画
@@ -694,6 +703,9 @@ function createMeteorAnimation(
     return;
   }
 
+  // 确保duration更短
+  const actualDurationBase = Math.max(duration, 170);
+  
   // 创建一个defs元素来存放渐变等
   let defs = svg.select<SVGDefsElement>('defs');
   if (defs.empty()) {
@@ -724,155 +736,331 @@ function createMeteorAnimation(
     .attr('stop-color', color)
     .attr('stop-opacity', 0);
 
+  // 获取所有可能的X坐标（列）
+  const allXPositions = new Set<number>();
+  
+  // 收集所有出现的X坐标
+  sourcePositions.forEach(source => {
+    allXPositions.add(source.x);
+  });
+  
+  targetPositions.forEach(target => {
+    allXPositions.add(target.x);
+  });
+  
+  // 转换为数组并排序
+  const sortedXPositions = Array.from(allXPositions).sort((a, b) => a - b);
+  
+  console.log(`找到 ${sortedXPositions.length} 个不同的列坐标`);
+  
+  // 按列整理数据
+  const columns: { x: number, yPositions: { y: number, value: string, color: string }[] }[] = [];
+  
+  // 为每个X坐标创建列
+  sortedXPositions.forEach(x => {
+    // 找出该列上的所有源位置并按y坐标排序
+    const positionsInColumn = sourcePositions
+      .filter(source => Math.abs(source.x - x) < 1) // 允许有小误差
+      .sort((a, b) => a.y - b.y); // 从上到下排序
+    
+    columns.push({
+      x: x,
+      yPositions: positionsInColumn
+    });
+  });
+  
+  console.log(`按列整理后有 ${columns.length} 个列`);
+  
+  // 寻找所有列中最上面一行位置作为统一的起始高度
+  let globalMinY = Number.MAX_VALUE;
+  columns.forEach(column => {
+    if (column.yPositions.length > 0) {
+      const minY = Math.min(...column.yPositions.map(p => p.y));
+      globalMinY = Math.min(globalMinY, minY);
+    }
+  });
+  
+  // 如果没有找到有效的Y坐标，使用默认值
+  if (globalMinY === Number.MAX_VALUE) {
+    globalMinY = 100;
+  }
+  
+  // 统一的起始高度 - 所有流星从相同高度开始
+  const globalStartY = globalMinY - digitWidth * 2;
+  
+  // 找到所有目标位置中最低的一个作为统一的目标高度
+  let globalMaxTargetY = 0;
+  targetPositions.forEach(target => {
+    globalMaxTargetY = Math.max(globalMaxTargetY, target.y);
+  });
+  
+  // 如果没有找到有效的目标Y坐标，使用默认值
+  if (globalMaxTargetY === 0) {
+    globalMaxTargetY = 400;
+  }
+  
+  // 计算统一的下落距离和动画持续时间
+  const globalDistance = Math.abs(globalMaxTargetY - globalStartY);
+  const globalDuration = Math.max(actualDurationBase, globalDistance * 20);
+  
+  console.log(`统一起始高度: ${globalStartY}, 目标高度: ${globalMaxTargetY}, 距离: ${globalDistance}, 持续时间: ${globalDuration}ms`);
+  
   // 创建计数器跟踪完成的动画数量
   let completedAnimations = 0;
   
-  // 直接使用源位置和目标位置数组
-  const numAnimations = Math.min(sourcePositions.length, targetPositions.length);
-  console.log(`开始创建 ${numAnimations} 个流星动画`);
+  // 使用列数量作为总动画数
+  const totalAnimations = columns.length;
   
-  // 为每个位创建流星动画
-  for (let i = 0; i < numAnimations; i++) {
-    const source = sourcePositions[i];
-    const target = targetPositions[i];
+  // 为每列创建流星动画
+  columns.forEach((column, columnIndex) => {
+    const positions = column.yPositions;
+    const dropX = column.x; // 使用列坐标作为下落点
     
-    // 确保流星X坐标与目标位置对齐
-    const dropX = target.x;
+    // 使用统一的起始Y坐标，所有流星水平对齐
+    const startY = globalStartY;
     
-    // 只为值为1的位创建完整动画
-    const isOne = source.value === '1';
+    // 寻找目标位置 - 可能没有
+    const target = targetPositions.find(t => Math.abs(t.x - column.x) < 1);
+    const targetY = target ? target.y : globalMaxTargetY; // 如果没有目标，使用统一的底部位置
     
-    // 计算动画参数
-    const delay = Math.min(i * 50, 400); // 稍微错开动画开始时间
-    const distance = Math.abs(target.y - source.y);
-    const actualDuration = Math.min(duration, Math.max(500, distance));
+    // 流星初始值为0
+    let meteorValue = '0';
     
-    console.log(`创建流星 #${i}: 从(${source.x}, ${source.y})到(${target.x}, ${target.y}), 值=${source.value}`);
+    // 使用统一的动画持续时间，所有流星速度相同
+    const actualDuration = globalDuration;
+    
+    console.log(`创建流星 #${columnIndex} [x=${dropX.toFixed(2)}]: 从y=${startY.toFixed(2)}到y=${targetY.toFixed(2)}, 持续时间=${actualDuration}ms, 包含${positions.length}个位置`);
     
     // 创建流星组
     const meteorGroup = svg.append('g')
       .attr('class', 'meteor')
-      .style('opacity', 0);
+      .style('opacity', 1); // 立即显示，不要淡入
     
     // 计算流星头部大小
-    const meteorSize = Math.max(digitWidth * 0.6, 8); 
+    const meteorSize = Math.max(digitWidth * 0.8, 10); 
     
-    // 创建流星头部（圆形）
-    const meteorHead = meteorGroup.append('circle')
-      .attr('cx', dropX)
-      .attr('cy', source.y)
-      .attr('r', meteorSize / 2)
-      .attr('fill', isOne ? source.color : '#adb5bd');
+    // 创建流星头部（正方形带圆角）
+    const meteorHead = meteorGroup.append('rect')
+      .attr('x', dropX - meteorSize / 2)
+      .attr('y', startY - meteorSize / 2)
+      .attr('width', meteorSize)
+      .attr('height', meteorSize)
+      .attr('rx', meteorSize * 0.2)
+      .attr('ry', meteorSize * 0.2)
+      .attr('fill', '#6c757d') // 初始颜色为灰色
+      .attr('stroke', '#495057')
+      .attr('stroke-width', 1);
     
     // 创建流星尾巴（垂直向上）
-    let meteorTail = isOne ? meteorGroup.append('path')
-      .attr('d', `M ${dropX} ${source.y} L ${dropX} ${source.y - meteorSize * 3}`)
+    const meteorTail = meteorGroup.append('path')
+      .attr('d', `M ${dropX} ${startY} L ${dropX} ${startY - meteorSize * 2}`)
       .attr('stroke', `url(#${gradientId})`)
-      .attr('stroke-width', meteorSize * 0.8)
+      .attr('stroke-width', meteorSize * 0.6)
       .attr('stroke-linecap', 'round')
-      .attr('fill', 'none') : null;
+      .attr('fill', 'none');
     
     // 在流星头部添加数字
     const meteorText = meteorGroup.append('text')
       .attr('x', dropX)
-      .attr('y', source.y)
+      .attr('y', startY)
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'middle')
       .attr('font-size', Math.max(10, digitWidth * 0.7))
       .attr('font-weight', 'bold')
       .attr('fill', 'white')
-      .text(source.value);
+      .text(meteorValue);
     
     // 创建粒子容器
     const particleGroup = meteorGroup.append('g')
       .attr('class', 'particles');
     
-    // 显示流星
-    meteorGroup.transition()
-      .duration(100)
-      .style('opacity', 1)
-      .on('end', () => {
-        console.log(`流星 #${i} 开始动画`);
-        
-        // 使用自定义计时器执行动画
-        let start: number | null = null;
-        
-        function step(timestamp: number) {
-          if (!start) start = timestamp;
-          
-          // 计算动画进度 (0-1)
-          const elapsed = timestamp - start;
-          let progress = Math.min(1, elapsed / actualDuration);
-          
-          // 使用缓动函数模拟重力加速度 - 开始慢，结束快
-          const easedProgress = progress * progress;
-          
-          // 计算当前Y位置（垂直下落）
-          const currentY = source.y + (target.y - source.y) * easedProgress;
-          
-          // 更新流星头部位置
-          meteorHead
-            .attr('cy', currentY);
-            
-          // 更新文本位置
-          meteorText
-            .attr('y', currentY);
-          
-          // 更新尾巴 (仅对值为1的位)
-          if (isOne && meteorTail) {
-            // 尾巴始终在头部上方，长度随速度增加
-            const tailLength = meteorSize * 3 * (1 + progress);
-            meteorTail.attr('d', `M ${dropX} ${currentY} L ${dropX} ${currentY - tailLength}`);
-          }
-          
-          // 在特定进度点添加粒子
-          if (isOne && progress > 0.1 && progress < 0.9 && Math.random() > 0.7) {
-            createParticleForMeteor(particleGroup, dropX, currentY, meteorSize, source.color);
-          }
-          
-          // 如果动画未完成，继续下一帧
-          if (progress < 1) {
-            requestAnimationFrame(step);
-          } else {
-            console.log(`流星 #${i} 动画完成`);
-            
-            // 动画完成，添加碰撞粒子效果
-            if (isOne) {
-              createImpactEffectForMeteor(svg, dropX, target.y, meteorSize * 1.5, color);
-            }
-            
-            // 淡出流星
-            meteorGroup.transition()
-              .duration(200)
-              .style('opacity', 0)
-              .on('end', () => {
-                // 移除流星元素
-                meteorGroup.remove();
-                
-                // 增加计数器并检查是否完成所有动画
-                completedAnimations++;
-                console.log(`完成动画: ${completedAnimations}/${numAnimations}`);
-                
-                if (completedAnimations >= numAnimations && onComplete) {
-                  console.log("所有动画完成，调用回调");
-                  setTimeout(onComplete, 100);
-                }
-              });
+    // 使用自定义计时器执行动画
+    let start = Date.now();
+    let lastProgress = 0;
+    let currentPositionIndex = -1; // 当前位置索引，-1表示还未到达任何位置
+    let lastXorTime = 0; // 上次进行异或运算的时间戳
+    const xorInterval = 20; // 异或运算的最小间隔
+    
+    function step() {
+      const now = Date.now();
+      
+      // 计算动画进度 (0-1)
+      const elapsed = now - start;
+      let progress = Math.min(1, elapsed / actualDuration);
+      
+      // 每帧至少前进一定比例，确保动画不会卡顿
+      progress = Math.max(progress, lastProgress + 0.001);
+      
+      // 如果进度变化太小，保证最小变化量
+      if (progress - lastProgress < 0.001) {
+        progress = lastProgress + 0.001;
+      }
+      lastProgress = progress;
+      
+      // 使用线性缓动函数，消除加速效果，使速度均匀且快速
+      const easedProgress = progress;
+      
+      // 计算当前Y位置（垂直下落）
+      const currentY = startY + (targetY - startY) * easedProgress;
+      
+      // 检查是否到达新的位置
+      if (positions.length > 0) {
+        // 找到当前应该检查的位置索引（基于当前Y坐标）
+        let newPositionIndex = -1;
+        for (let i = 0; i < positions.length; i++) {
+          if (currentY >= positions[i].y && (i === positions.length - 1 || currentY < positions[i + 1].y)) {
+            newPositionIndex = i;
+            break;
           }
         }
         
-        // 开始动画循环
-        setTimeout(() => {
-          requestAnimationFrame(step);
-        }, delay);
-      });
-  }
+        // 如果到达了新位置且与上次不同，执行异或运算
+        if (newPositionIndex !== -1 && newPositionIndex !== currentPositionIndex && 
+            now - lastXorTime > xorInterval) {
+          currentPositionIndex = newPositionIndex;
+          lastXorTime = now;
+          
+          // 进行异或运算并更新值 - 改为XOR运算
+          const currentBit = positions[currentPositionIndex].value;
+          meteorValue = (parseInt(meteorValue, 2) ^ parseInt(currentBit, 2)).toString();
+          
+          // 更新文本值
+          meteorText.text(meteorValue);
+          
+          // 更新流星颜色（如果结果为1，则使用绿色；否则保持灰色）
+          const newColor = meteorValue === '1' ? color : '#6c757d';
+          meteorHead.attr('fill', newColor);
+          
+          // 添加碰撞效果
+          createMiniImpactEffect(svg, dropX, currentY, meteorSize, positions[currentPositionIndex].color);
+          
+          console.log(`流星 #${columnIndex} 位置 ${currentPositionIndex}: 当前位=${currentBit}, 异或后=${meteorValue}`);
+        }
+      }
+      
+      // 更新流星头部位置
+      meteorHead
+        .attr('x', dropX - meteorSize / 2)
+        .attr('y', currentY - meteorSize / 2);
+        
+      // 更新文本位置
+      meteorText
+        .attr('y', currentY);
+      
+      // 更新尾巴
+      const tailLength = meteorSize * 2 * (1 + progress);
+      meteorTail.attr('d', `M ${dropX} ${currentY} L ${dropX} ${currentY - tailLength}`);
+      
+      // 在特定进度点添加粒子（降低产生频率）
+      if (progress > 0.1 && progress < 0.9 && Math.random() > 0.95) {
+        createParticleForMeteor(particleGroup, dropX, currentY, meteorSize * 0.6, meteorValue === '1' ? color : '#6c757d');
+      }
+      
+      // 如果动画未完成，继续下一帧
+      if (progress < 1) {
+        const frameId = requestAnimationFrame(step);
+        activeAnimationFrames.push(frameId);
+      } else {
+        console.log(`流星 #${columnIndex} 动画完成，最终值=${meteorValue}`);
+        
+        // 动画完成，添加碰撞粒子效果
+        createImpactEffectForMeteor(svg, dropX, targetY, meteorSize * 1.5, meteorValue === '1' ? color : '#6c757d');
+        
+        // 淡出流星
+        meteorGroup.transition()
+          .duration(300)
+          .style('opacity', 0)
+          .on('end', () => {
+            // 移除流星元素
+            meteorGroup.remove();
+            
+            // 增加计数器并检查是否完成所有动画
+            completedAnimations++;
+            console.log(`完成动画: ${completedAnimations}/${totalAnimations}`);
+            
+            if (completedAnimations >= totalAnimations && onComplete) {
+              console.log("所有动画完成，调用回调");
+              setTimeout(onComplete, 100);
+            }
+          });
+      }
+    }
+    
+    // 立即开始动画循环，不设置延迟
+    const frameId = requestAnimationFrame(step);
+    activeAnimationFrames.push(frameId);
+  });
   
   // 如果没有动画要执行，则立即调用完成回调
-  if (numAnimations === 0 && onComplete) {
+  if (totalAnimations === 0 && onComplete) {
     console.log("没有动画可执行，直接调用回调");
     onComplete();
   }
+}
+
+/**
+ * 为流星创建碰撞效果（小型）
+ */
+function createMiniImpactEffect(
+  svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+  x: number,
+  y: number,
+  size: number,
+  color: string
+): void {
+  // 碰撞闪光
+  const flash = svg.append('circle')
+    .attr('cx', x)
+    .attr('cy', y)
+    .attr('r', size * 0.6)
+    .attr('fill', 'white')
+    .style('opacity', 0.7)
+    .style('filter', 'url(#glow)');
+  
+  flash.transition()
+    .duration(400)
+    .attr('r', size)
+    .style('opacity', 0)
+    .on('end', () => flash.remove());
+  
+  // 创建少量散射粒子
+  const particleCount = Math.floor(Math.random() * 3) + 3;
+  const impactGroup = svg.append('g');
+  
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (i / particleCount) * Math.PI * 2;
+    const distance = size * (Math.random() * 0.3 + 0.3);
+    const particleSize = Math.random() * (size / 4) + (size / 8);
+    
+    // 粒子的终点位置
+    const endX = x + Math.cos(angle) * distance;
+    const endY = y + Math.sin(angle) * distance;
+    
+    // 创建粒子
+    const particle = impactGroup.append('circle')
+      .attr('cx', x)
+      .attr('cy', y)
+      .attr('r', particleSize)
+      .attr('fill', color)
+      .style('opacity', 0.6);
+    
+    // 粒子动画 - 慢速出现然后减速
+    particle.transition()
+      .duration(600)
+      .ease(d3.easeCubicOut)
+      .attr('cx', endX)
+      .attr('cy', endY)
+      .transition()
+      .duration(400)
+      .style('opacity', 0)
+      .on('end', () => particle.remove());
+  }
+  
+  // 清理整个群组
+  const timeoutId = setTimeout(() => {
+    impactGroup.remove();
+  }, 1000);
+  activeTimeouts.push(timeoutId);
 }
 
 /**
@@ -1168,4 +1356,26 @@ function renderBitIndices(
       .attr('style', 'letter-spacing: -1px; font-weight: normal;')
       .text(bitIndex);
   }
+}
+
+// 创建一个停止所有动画的函数
+function stopAllAnimations() {
+  console.log("停止所有动画:", {
+    activeAnimationFrames: activeAnimationFrames.length,
+    activeTimeouts: activeTimeouts.length
+  });
+  
+  // 取消所有requestAnimationFrame
+  activeAnimationFrames.forEach(id => {
+    cancelAnimationFrame(id);
+  });
+  
+  // 清除所有setTimeout
+  activeTimeouts.forEach(id => {
+    clearTimeout(id);
+  });
+  
+  // 重置数组
+  activeAnimationFrames = [];
+  activeTimeouts = [];
 } 

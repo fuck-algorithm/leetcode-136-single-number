@@ -223,7 +223,7 @@ export const createMeteorAnimation = (
   svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
   sourcePositions: Array<{x: number, y: number, value: string, color: string}>,
   targetPositions: Array<{x: number, y: number}>,
-  duration: number = 800,
+  duration: number = 50000,
   digitWidth: number = 20,
   resultColor: string = '#40c057',
   onComplete?: () => void
@@ -264,25 +264,49 @@ export const createMeteorAnimation = (
     .attr('stop-color', resultColor)
     .attr('stop-opacity', 0);
 
+  // 获取列的数量和位置
+  const columns: { x: number, yPositions: { y: number, value: string, color: string }[] }[] = [];
+  
+  // 整理数据，按列分组
+  sourcePositions.forEach(source => {
+    // 查找现有列或创建新列
+    let column = columns.find(col => Math.abs(col.x - source.x) < 1);
+    if (!column) {
+      column = { x: source.x, yPositions: [] };
+      columns.push(column);
+    }
+    column.yPositions.push({ y: source.y, value: source.value, color: source.color });
+  });
+  
+  // 按y坐标排序每列中的位置（从上到下）
+  columns.forEach(column => {
+    column.yPositions.sort((a, b) => a.y - b.y);
+  });
+
   // 创建计数器跟踪完成的动画数量
   let completedAnimations = 0;
-  const totalAnimations = Math.min(sourcePositions.length, targetPositions.length);
+  const totalAnimations = columns.length;
   
-  // 为每个位创建流星动画
-  sourcePositions.forEach((source, i) => {
-    if (i >= targetPositions.length) return;
-    const target = targetPositions[i];
+  // 为每列创建流星动画
+  columns.forEach((column, columnIndex) => {
+    const positions = column.yPositions;
+    if (positions.length === 0) return;
+    
+    // 找到对应的目标位置
+    const target = targetPositions.find(t => Math.abs(t.x - column.x) < 1);
+    if (!target) return;
     
     // 计算X坐标：应该与目标X坐标相同（确保垂直下落）
     const dropX = target.x;
     
-    // 只为值为1的位创建完整动画
-    const isOne = source.value === '1';
+    // 流星初始值为0（用于与运算）
+    let meteorValue = '0';
     
     // 计算动画参数
-    const delay = Math.min(i * 50, 400); // 稍微错开动画开始时间
-    const distance = Math.abs(target.y - source.y);
-    const actualDuration = Math.min(duration, Math.max(500, distance)); // 根据距离调整实际动画时间
+    const delay = Math.min(columnIndex * 1000, 5000);
+    const startY = positions[0].y - digitWidth * 2; // 从第一个位置上方开始
+    const distance = Math.abs(target.y - startY);
+    const actualDuration = Math.min(duration, Math.max(50000, distance));
     
     // 创建流星组
     const meteorGroup = svg.append('g')
@@ -290,36 +314,38 @@ export const createMeteorAnimation = (
       .style('opacity', 0);
     
     // 计算流星头部大小
-    const meteorSize = Math.max(digitWidth * 0.6, 8); 
+    const meteorSize = Math.max(digitWidth * 0.8, 10); 
     
-    // 创建流星头部（圆形）
-    const meteorHead = meteorGroup.append('circle')
-      .attr('cx', dropX)
-      .attr('cy', source.y)
-      .attr('r', meteorSize / 2)
-      .attr('fill', isOne ? resultColor : '#adb5bd');
+    // 创建流星头部（正方形带圆角）
+    const meteorHead = meteorGroup.append('rect')
+      .attr('x', dropX - meteorSize / 2)
+      .attr('y', startY - meteorSize / 2)
+      .attr('width', meteorSize)
+      .attr('height', meteorSize)
+      .attr('rx', meteorSize * 0.2)
+      .attr('ry', meteorSize * 0.2)
+      .attr('fill', '#6c757d')
+      .attr('stroke', '#495057')
+      .attr('stroke-width', 1);
     
     // 创建流星尾巴（垂直向上）
-    let meteorTail: d3.Selection<SVGPathElement, unknown, null, undefined> | undefined;
-    if (isOne) {
-      meteorTail = meteorGroup.append('path')
-        .attr('d', `M ${dropX} ${source.y} L ${dropX} ${source.y - meteorSize * 3}`)
-        .attr('stroke', `url(#${gradientId})`)
-        .attr('stroke-width', meteorSize * 0.8)
-        .attr('stroke-linecap', 'round')
-        .attr('fill', 'none');
-    }
+    const meteorTail = meteorGroup.append('path')
+      .attr('d', `M ${dropX} ${startY} L ${dropX} ${startY - meteorSize * 2}`)
+      .attr('stroke', `url(#${gradientId})`)
+      .attr('stroke-width', meteorSize * 0.6)
+      .attr('stroke-linecap', 'round')
+      .attr('fill', 'none');
     
     // 在流星头部添加数字
     const meteorText = meteorGroup.append('text')
       .attr('x', dropX)
-      .attr('y', source.y)
+      .attr('y', startY)
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'middle')
       .attr('font-size', Math.max(10, digitWidth * 0.7))
       .attr('font-weight', 'bold')
       .attr('fill', 'white')
-      .text(source.value);
+      .text(meteorValue);
     
     // 创建粒子容器
     const particleGroup = meteorGroup.append('g')
@@ -332,6 +358,9 @@ export const createMeteorAnimation = (
       .on('end', () => {
         // 使用自定义计时器执行动画
         let start: number | null = null;
+        let currentPositionIndex = -1; // 当前位置索引，-1表示还未到达任何位置
+        let lastAndsTime = 0; // 上次进行与运算的时间戳
+        const andsInterval = 1000; // 增加与运算的最小间隔到1秒
         
         function step(timestamp: number) {
           if (!start) start = timestamp;
@@ -341,30 +370,61 @@ export const createMeteorAnimation = (
           let progress = Math.min(1, elapsed / actualDuration);
           
           // 使用缓动函数模拟重力加速度 - 开始慢，结束快
-          // 使用基于物理的二次方程：d = 1/2 * g * t^2
-          const easedProgress = progress * progress;
+          // 减小加速度，使下落更加平缓
+          const easedProgress = progress * (0.5 * progress);
           
           // 计算当前Y位置（垂直下落）
-          const currentY = source.y + (target.y - source.y) * easedProgress;
+          const currentY = startY + (target!.y - startY) * easedProgress;
+          
+          // 检查是否到达新的位置
+          if (positions.length > 0) {
+            // 找到当前应该检查的位置索引（基于当前Y坐标）
+            let newPositionIndex = -1;
+            for (let i = 0; i < positions.length; i++) {
+              if (currentY >= positions[i].y && (i === positions.length - 1 || currentY < positions[i + 1].y)) {
+                newPositionIndex = i;
+                break;
+              }
+            }
+            
+            // 如果到达了新位置且与上次不同，执行与运算
+            if (newPositionIndex !== -1 && newPositionIndex !== currentPositionIndex && 
+                timestamp - lastAndsTime > andsInterval) {
+              currentPositionIndex = newPositionIndex;
+              lastAndsTime = timestamp;
+              
+              // 进行与运算并更新值
+              const currentBit = positions[currentPositionIndex].value;
+              meteorValue = (parseInt(meteorValue, 2) & parseInt(currentBit, 2)).toString();
+              
+              // 更新文本值
+              meteorText.text(meteorValue);
+              
+              // 更新流星颜色（如果结果为1，则使用绿色；否则保持灰色）
+              const newColor = meteorValue === '1' ? resultColor : '#6c757d';
+              meteorHead.attr('fill', newColor);
+              
+              // 添加碰撞效果
+              createMiniImpactEffect(svg, dropX, currentY, meteorSize * 0.8, positions[currentPositionIndex].color);
+            }
+          }
           
           // 更新流星头部位置
           meteorHead
-            .attr('cy', currentY);
+            .attr('x', dropX - meteorSize / 2)
+            .attr('y', currentY - meteorSize / 2);
             
           // 更新文本位置
           meteorText
             .attr('y', currentY);
           
-          // 更新尾巴 (仅对值为1的位)
-          if (isOne && meteorTail) {
-            // 尾巴始终在头部上方，长度随速度增加
-            const tailLength = meteorSize * 3 * (1 + progress);
-            meteorTail.attr('d', `M ${dropX} ${currentY} L ${dropX} ${currentY - tailLength}`);
-          }
+          // 更新尾巴
+          const tailLength = meteorSize * 2 * (1 + progress);
+          meteorTail.attr('d', `M ${dropX} ${currentY} L ${dropX} ${currentY - tailLength}`);
           
           // 在特定进度点添加粒子
-          if (isOne && progress > 0.1 && progress < 0.9 && Math.random() > 0.7) {
-            createParticle(particleGroup, dropX, currentY, meteorSize, resultColor);
+          if (progress > 0.1 && progress < 0.9 && Math.random() > 0.8) {
+            createParticle(particleGroup, dropX, currentY, meteorSize * 0.6, meteorValue === '1' ? resultColor : '#6c757d');
           }
           
           // 如果动画未完成，继续下一帧
@@ -372,13 +432,11 @@ export const createMeteorAnimation = (
             requestAnimationFrame(step);
           } else {
             // 动画完成，添加碰撞粒子效果
-            if (isOne) {
-              createImpactEffect(svg, dropX, target.y, meteorSize * 1.5, resultColor);
-            }
+            createImpactEffect(svg, dropX, target!.y, meteorSize * 1.5, meteorValue === '1' ? resultColor : '#6c757d');
             
             // 淡出流星
             meteorGroup.transition()
-              .duration(200)
+              .duration(300)
               .style('opacity', 0)
               .on('end', () => {
                 // 移除流星元素
@@ -525,4 +583,68 @@ function createImpactEffect(
   setTimeout(() => {
     impactGroup.remove();
   }, 600);
+}
+
+/**
+ * 创建小型碰撞效果（用于与运算时）
+ */
+function createMiniImpactEffect(
+  svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+  x: number,
+  y: number,
+  size: number,
+  color: string
+): void {
+  // 碰撞闪光
+  const flash = svg.append('circle')
+    .attr('cx', x)
+    .attr('cy', y)
+    .attr('r', size * 0.6)
+    .attr('fill', 'white')
+    .style('opacity', 0.7)
+    .style('filter', 'url(#glow)');
+  
+  flash.transition()
+    .duration(100)
+    .attr('r', size)
+    .style('opacity', 0)
+    .on('end', () => flash.remove());
+  
+  // 创建少量散射粒子
+  const particleCount = Math.floor(Math.random() * 3) + 3;
+  const impactGroup = svg.append('g');
+  
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (i / particleCount) * Math.PI * 2;
+    const distance = size * (Math.random() * 0.3 + 0.3);
+    const particleSize = Math.random() * (size / 4) + (size / 8);
+    
+    // 粒子的终点位置
+    const endX = x + Math.cos(angle) * distance;
+    const endY = y + Math.sin(angle) * distance;
+    
+    // 创建粒子
+    const particle = impactGroup.append('circle')
+      .attr('cx', x)
+      .attr('cy', y)
+      .attr('r', particleSize)
+      .attr('fill', color)
+      .style('opacity', 0.6);
+    
+    // 粒子动画 - 快速出现然后减速
+    particle.transition()
+      .duration(150)
+      .ease(d3.easeCubicOut)
+      .attr('cx', endX)
+      .attr('cy', endY)
+      .transition()
+      .duration(100)
+      .style('opacity', 0)
+      .on('end', () => particle.remove());
+  }
+  
+  // 清理整个群组
+  setTimeout(() => {
+    impactGroup.remove();
+  }, 300);
 } 
