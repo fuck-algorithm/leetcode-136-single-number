@@ -29,14 +29,8 @@ export const renderBinaryRow = (
   // 确保有滤镜
   createGlowFilter(svg);
   
-  // 为每个位创建渐变 - 为0和1都创建渐变
-  for (let i = 0; i < binary.length; i++) {
-    const digit = binary[i];
-    const isOne = digit === '1';
-    // 1使用传入的颜色，0使用浅灰色
-    const digitColor = isOne ? color : '#e9ecef';
-    create3DGradient(svg, `gradient-${i}-${color.replace('#', '')}-${digit}`, digitColor);
-  }
+  // 为整行创建一个渐变，用于所有方块（不区分0和1）
+  create3DGradient(svg, `row-gradient-${color.replace('#', '')}`, color);
   
   // 根据二进制长度和每个位的宽度自动调整尺寸
   
@@ -64,20 +58,15 @@ export const renderBinaryRow = (
     // 修改X坐标计算，确保与索引对齐
     const x = startX + alignOffset + i * spacing + spacing / 2;
     const isOne = digit === '1';
-    // 为0和1使用不同的渐变ID
-    const gradientId = `gradient-${i}-${color.replace('#', '')}-${digit}`;
     
-    // 为每一个方块创建一个唯一ID，包括0和1
-    const boxId = `box-${i}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // 背景方块 - 不同数值使用不同的背景颜色
+    // 背景方块 - 同一行的所有方块使用相同的背景色
     const rect = svg.append('rect')
       .attr('x', x - rectWidth / 2)
       .attr('y', rectStartY)
       .attr('width', rectWidth)
       .attr('height', rectHeight)
-      .attr('fill', `url(#${gradientId})`)
-      .attr('stroke', '#adb5bd') // 使用中等亮度的边框
+      .attr('fill', `url(#row-gradient-${color.replace('#', '')})`) // 所有方块使用相同的背景渐变
+      .attr('stroke', '#adb5bd') 
       .attr('stroke-width', binary.length > 24 ? 0.5 : (binary.length > 16 ? 0.8 : 1.0))
       .attr('rx', Math.max(1, rectWidth * 0.1))
       .attr('ry', Math.max(1, rectHeight * 0.1));
@@ -85,9 +74,9 @@ export const renderBinaryRow = (
     // 给所有方块添加轻微的阴影效果
     rect.style('filter', 'url(#glow)');
     
-    // 添加呼吸效果 - 1和0的区别在于亮度和强度
+    // 为1添加边框效果，0不添加特殊边框
     if (isOne) {
-      // 为1的方块添加更明显的呼吸边框效果
+      // 为1的方块添加呼吸边框效果
       addBreathingBorder(rect, color, binary.length > 24 ? 0.8 : (binary.length > 16 ? 1.2 : 1.5));
       
       // 如果是结果行且是1，添加特殊效果
@@ -96,36 +85,21 @@ export const renderBinaryRow = (
         const effectRadius = Math.min(20, rectWidth * 1.8);
         addRadialEffect(svg, x, y, color, effectRadius);
       }
+    }
+    
+    // 所有方块的动画效果（0和1都有，但效果略有不同）
+    if (animate) {
+      const animationDelay = Math.min(i * 70, 400);
       
-      // 如果需要动画效果
-      if (animate) {
-        const animationDelay = Math.min(i * 70, 400);
-          
-        rect.style('opacity', 0)
-          .transition()
-          .delay(animationDelay)
-          .duration(300)
-          .style('opacity', 1)
-          .attr('transform', 'translate(0, -1)')
-          .transition()
-          .duration(200)
-          .attr('transform', 'translate(0, 0)');
-      }
-    } else {
-      // 为0添加更微妙的呼吸效果 - 使用灰色
-      const zeroColor = '#adb5bd';
-      addBreathingBorder(rect, zeroColor, binary.length > 24 ? 0.3 : (binary.length > 16 ? 0.4 : 0.5));
-      
-      // 给0添加更微妙的动画
-      if (animate) {
-        const animationDelay = Math.min(i * 50, 300);
-        
-        rect.style('opacity', 0)
-          .transition()
-          .delay(animationDelay)
-          .duration(200)
-          .style('opacity', 0.8); // 0的方块透明度略低
-      }
+      rect.style('opacity', 0)
+        .transition()
+        .delay(animationDelay)
+        .duration(300)
+        .style('opacity', isOne ? 1 : 0.8) // 1完全不透明，0略微透明
+        .attr('transform', isOne ? 'translate(0, -1)' : 'translate(0, 0)') // 只有1有上移效果
+        .transition()
+        .duration(200)
+        .attr('transform', 'translate(0, 0)');
     }
       
     // 数字文本 - 使用不同的字体样式区分0和1
@@ -136,26 +110,18 @@ export const renderBinaryRow = (
       .attr('dominant-baseline', 'middle')
       .attr('font-size', `${fontSize}px`)
       .attr('font-weight', isOne ? 'bold' : 'normal')
-      .attr('fill', isOne ? 'white' : '#f8f9fa') // 都使用浅色但1更亮
+      .attr('fill', isOne ? 'white' : '#495057') // 1白色，0灰色
       .text(digit);
     
     // 给数字添加动画效果
     if (animate) {
       const animationDelay = Math.min(i * 70, 400);
       
-      if (isOne) {
-        text.style('opacity', 0)
-          .transition()
-          .delay(animationDelay)
-          .duration(300)
-          .style('opacity', 1);
-      } else {
-        text.style('opacity', 0)
-          .transition()
-          .delay(animationDelay)
-          .duration(200)
-          .style('opacity', 0.8);
-      }
+      text.style('opacity', 0)
+        .transition()
+        .delay(animationDelay)
+        .duration(300)
+        .style('opacity', isOne ? 1 : 0.8);
     }
   }
 };
