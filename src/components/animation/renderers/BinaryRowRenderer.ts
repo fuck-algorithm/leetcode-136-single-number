@@ -29,8 +29,9 @@ export const renderBinaryRow = (
   // 确保有滤镜
   createGlowFilter(svg);
   
-  // 为整行创建一个渐变，用于所有方块（不区分0和1）
-  create3DGradient(svg, `row-gradient-${color.replace('#', '')}`, color);
+  // 为行创建渐变 - 1使用行颜色，0使用淡灰色
+  create3DGradient(svg, `row-gradient-one-${color.replace('#', '')}`, color); // 1的渐变
+  create3DGradient(svg, `row-gradient-zero`, '#e9ecef'); // 0的渐变（淡灰色）
   
   // 根据二进制长度和每个位的宽度自动调整尺寸
   
@@ -59,13 +60,13 @@ export const renderBinaryRow = (
     const x = startX + alignOffset + i * spacing + spacing / 2;
     const isOne = digit === '1';
     
-    // 背景方块 - 同一行的所有方块使用相同的背景色
+    // 背景方块 - 1和0使用不同的背景色
     const rect = svg.append('rect')
       .attr('x', x - rectWidth / 2)
       .attr('y', rectStartY)
       .attr('width', rectWidth)
       .attr('height', rectHeight)
-      .attr('fill', `url(#row-gradient-${color.replace('#', '')})`) // 所有方块使用相同的背景渐变
+      .attr('fill', isOne ? `url(#row-gradient-one-${color.replace('#', '')})` : `url(#row-gradient-zero)`) // 1用行颜色，0用淡灰色
       .attr('stroke', '#adb5bd') 
       .attr('stroke-width', binary.length > 24 ? 0.5 : (binary.length > 16 ? 0.8 : 1.0))
       .attr('rx', Math.max(1, rectWidth * 0.1))
