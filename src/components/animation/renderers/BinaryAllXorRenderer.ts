@@ -68,8 +68,8 @@ export const renderAllBinaryXorOperation = (
   svg.attr('viewBox', `0 0 ${width} ${totalHeight}`);
   
   // 计算左右边距和标签位置，使内容居中
-  const leftLabelWidth = 300; // 进一步增加左侧标签所需宽度，为连线提供更多空间
-  const rightMargin = 5; // 保持较小的右侧边距
+  const leftLabelWidth = 200; // 减小左侧标签宽度
+  const rightMargin = 20; // 增加右侧边距，给更多空间
   
   // 计算整个内容的宽度，包括标签和二进制表示
   const contentWidth = width - leftLabelWidth - rightMargin;
@@ -79,14 +79,14 @@ export const renderAllBinaryXorOperation = (
   
   // 调整数字宽度以适应屏幕，但设置上限以防止过大
   const adjustedDigitWidth = Math.min(
-    Math.max(calculatedDigitWidth, 15), // 至少15px宽，但不要比计算值小
-    25 // 最大宽度上限
+    Math.max(calculatedDigitWidth, 15), // 至少15px宽
+    30 // 增加最大宽度上限
   );
   
   // 考虑到调整后的宽度可能导致总宽度变化，重新计算起始点
   const totalContentWidth = adjustedDigitWidth * maxLength;
   // 减少居中偏移量，使内容更靠右显示
-  const startX = leftLabelWidth + (contentWidth - totalContentWidth) / 2 + 20;
+  const startX = leftLabelWidth + 10; // 减小左侧空白
   
   // 创建数字到颜色的映射，相同数字使用相同颜色
   const numberColorMap = new Map<number, string>();
@@ -241,13 +241,29 @@ export const renderAllBinaryXorOperation = (
       
       // 获取已用偏移量并计算新偏移
       const usedOffsets = numberOffsetMap.get(num) || [];
-      let offset = 15; // 基本偏移增大，提供更多空间
+      let offset = 10; // 减小基本偏移，因为左侧空间变小了
       
       // 找到一个未被使用的偏移量
       while (usedOffsets.includes(offset)) {
-        offset += 10; // 增加偏移直到找到未使用的值，使用更大的增量
+        offset += 8; // 减小增量，使连线更紧凑
       }
+      
+      // 记录使用的偏移量
       usedOffsets.push(offset);
+      numberOffsetMap.set(num, usedOffsets);
+      
+      // 确定连线方向和曲率
+      const direction = Math.random() > 0.5 ? 'left' : 'right';
+      const curvature = 0.3 + Math.random() * 0.2; // 减小曲率范围，使连线更平滑
+      
+      // 检查是否有重叠的连线
+      const overlapping = connectionDirections.some(conn => 
+        (y1 >= conn.y1 && y1 <= conn.y2 || y2 >= conn.y1 && y2 <= conn.y2) &&
+        direction === conn.direction
+      );
+      
+      // 如果有重叠，尝试使用另一个方向
+      const finalDirection = overlapping ? (direction === 'left' ? 'right' : 'left') : direction;
       
       // 使用这个数字的偏移量创建连接点 - 使用左侧位置加偏移
       const connectorX1 = leftX1 - offset;
@@ -255,26 +271,6 @@ export const renderAllBinaryXorOperation = (
       
       // 计算垂直距离和索引差异
       const verticalDistance = Math.abs(y2 - y1);
-      
-      // 固定方向为左侧，避免向右弯曲遮挡数字
-      const direction: 'left' | 'right' = 'left';
-      
-      // 根据垂直距离和行索引计算曲率 - 距离越大曲率越小，保持优雅
-      // 基本曲率在0.15-0.6范围内变化
-      const baseCurvature = Math.min(0.6, Math.max(0.15, 1 / (verticalDistance / 100 + 1)));
-      
-      // 根据位置略微变化曲率以避免重叠
-      // 使用行号的模作为随机因子
-      const rowVariance = ((row1 + row2) % 7) / 10; // -0.3到0.3的变化，增大变化范围
-      const curvature = baseCurvature + rowVariance;
-      
-      // 记录这条连接线的信息
-      connectionDirections.push({
-        y1: Math.min(y1, y2),
-        y2: Math.max(y1, y2),
-        direction,
-        curvature
-      });
       
       // 根据方向计算控制点偏移
       const controlPointOffset = verticalDistance * curvature;
