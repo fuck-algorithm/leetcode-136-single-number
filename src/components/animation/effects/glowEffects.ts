@@ -167,28 +167,102 @@ export const addBreathingBorder = (
   // 为每个元素创建唯一ID
   const id = `breathing-border-${Math.random().toString(36).substr(2, 9)}`;
   
-  // 创建效果
+  // 创建效果 - 但使用更简单的效果
   const svg = d3.select(element.node()?.ownerSVGElement);
-  createBreathingBorderEffect(svg, id, baseColor);
   
-  // 为元素应用边框和过滤器
-  element
-    .attr('stroke', `url(#${id}-gradient)`)
-    .attr('stroke-width', initialStrokeWidth)
-    .style('filter', `url(#${id}-filter)`);
+  // 检查是否已经有类似颜色的渐变，避免创建过多类似的渐变
+  const existingGradients = svg.selectAll('linearGradient').nodes();
+  let existingGradientId: string | null = null;
   
-  // 设置边框宽度的呼吸动画
-  function animateBorder() {
+  // 查找相似颜色的渐变
+  for (const node of existingGradients) {
+    const gradient = d3.select(node);
+    const gradientId = gradient.attr('id');
+    
+    // 如果渐变ID以'breathing-border-'开头
+    if (gradientId && gradientId.startsWith('breathing-border-')) {
+      // 检查渐变的颜色
+      const stopColor = gradient.select('stop').attr('stop-color');
+      if (stopColor && isColorSimilar(stopColor, baseColor)) {
+        existingGradientId = gradientId;
+        break;
+      }
+    }
+  }
+  
+  // 如果找到类似颜色的渐变，直接使用它
+  if (existingGradientId) {
+    element
+      .attr('stroke', `url(#${existingGradientId})`)
+      .attr('stroke-width', initialStrokeWidth);
+      
+    // 简化的呼吸效果 - 只有一次扩张和收缩，不是无限循环
     element
       .transition()
       .duration(1000)
-      .attr('stroke-width', initialStrokeWidth * 3)
+      .attr('stroke-width', initialStrokeWidth * 2) // 减少扩张范围
       .transition()
       .duration(1000)
-      .attr('stroke-width', initialStrokeWidth)
-      .on('end', animateBorder);
+      .attr('stroke-width', initialStrokeWidth);
+  } else {
+    // 创建简化的渐变，而不是完整的效果
+    const defs = svg.select('defs').empty() ? svg.append('defs') : svg.select('defs');
+    
+    // 创建简单的渐变
+    const borderGradient = defs.append('linearGradient')
+      .attr('id', id)
+      .attr('x1', '0%')
+      .attr('y1', '0%')
+      .attr('x2', '100%')
+      .attr('y2', '100%');
+      
+    // 使用基础颜色
+    borderGradient.append('stop')
+      .attr('offset', '0%')
+      .attr('stop-color', baseColor);
+      
+    borderGradient.append('stop')
+      .attr('offset', '100%')
+      .attr('stop-color', d3.rgb(baseColor).darker(0.5).toString());
+    
+    // 为元素应用边框
+    element
+      .attr('stroke', `url(#${id})`)
+      .attr('stroke-width', initialStrokeWidth);
+      
+    // 简化的呼吸效果 - 只有一次扩张和收缩，不是无限循环
+    element
+      .transition()
+      .duration(1000)
+      .attr('stroke-width', initialStrokeWidth * 2) // 减少扩张范围
+      .transition()
+      .duration(1000)
+      .attr('stroke-width', initialStrokeWidth);
   }
-  
-  // 开始动画
-  animateBorder();
-}; 
+};
+
+/**
+ * 判断两个颜色是否相似
+ * @param color1 颜色1
+ * @param color2 颜色2
+ * @returns 是否相似
+ */
+function isColorSimilar(color1: string, color2: string): boolean {
+  try {
+    const rgb1 = d3.rgb(color1);
+    const rgb2 = d3.rgb(color2);
+    
+    // 计算RGB值差异
+    const diff = Math.sqrt(
+      Math.pow(rgb1.r - rgb2.r, 2) +
+      Math.pow(rgb1.g - rgb2.g, 2) +
+      Math.pow(rgb1.b - rgb2.b, 2)
+    );
+    
+    // 如果差异小于某个阈值，认为是相似的
+    return diff < 30;
+  } catch (e) {
+    // 处理颜色解析错误
+    return false;
+  }
+} 
