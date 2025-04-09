@@ -67,24 +67,24 @@ export const renderBinaryRow = (
     // 为每一个方块创建一个唯一ID，包括0和1
     const boxId = `box-${i}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // 为0创建一个淡色渐变
+    // 为0创建一个深色渐变
     if (!isOne) {
-      create3DGradient(svg, `zero-gradient-${boxId}`, '#e9ecef');
+      create3DGradient(svg, `zero-gradient-${boxId}`, '#2a2d35');
     }
     
-    // 背景方块
+    // 背景方块 - 使用更深的颜色
     const rect = svg.append('rect')
       .attr('x', x - rectWidth / 2)
       .attr('y', rectStartY)
       .attr('width', rectWidth)
       .attr('height', rectHeight)
       .attr('fill', isOne ? `url(#${gradientId})` : `url(#zero-gradient-${boxId})`)
-      .attr('stroke', isOne ? '#adb5bd' : '#d0d0d0')
-      .attr('stroke-width', binary.length > 24 ? 0.4 : (binary.length > 16 ? 0.7 : 1))
-      .attr('rx', Math.max(1, rectWidth * 0.1))
-      .attr('ry', Math.max(1, rectHeight * 0.1));
+      .attr('stroke', isOne ? '#1a1d23' : '#1a1d23') // 深色边框
+      .attr('stroke-width', binary.length > 24 ? 0.6 : (binary.length > 16 ? 0.9 : 1.2)) // 略微加粗
+      .attr('rx', Math.max(1, rectWidth * 0.12))
+      .attr('ry', Math.max(1, rectHeight * 0.12));
     
-    // 给所有方块添加轻微的阴影效果
+    // 给所有方块添加阴影效果 - 增强发光强度
     rect.style('filter', 'url(#glow)');
     
     // 添加光效和3D变换
@@ -93,20 +93,23 @@ export const renderBinaryRow = (
       
       // 如果是结果行，添加特殊效果
       if (isResult) {
-        // 为结果行添加呼吸发光边框效果
-        addBreathingBorder(rect, color, binary.length > 24 ? 0.8 : (binary.length > 16 ? 1.2 : 1.5));
+        // 为结果行添加深色荧光呼吸发光边框效果 - 增强对比度
+        const neonColor = d3.rgb(color).darker(0.3).toString(); // 稍微深一点的颜色
+        addBreathingBorder(rect, neonColor, binary.length > 24 ? 1.0 : (binary.length > 16 ? 1.5 : 2.0));
         
-        // 添加放射状光效
-        const effectRadius = Math.min(20, rectWidth * 1.8);
-        addRadialEffect(svg, x, y, color, effectRadius);
+        // 添加放射状光效 - 使用同样的深色调
+        const effectRadius = Math.min(20, rectWidth * 2);
+        addRadialEffect(svg, x, y, neonColor, effectRadius);
       }
       // 如果不是结果行但需要特殊呼吸效果
       else if (animate) {
-        // 为动画中的1添加呼吸发光边框效果，但使用较小的边框宽度
-        addBreathingBorder(rect, color, binary.length > 24 ? 0.5 : (binary.length > 16 ? 0.8 : 1));
+        // 为动画中的1添加深色呼吸发光边框效果
+        const neonColor = d3.rgb(color).darker(0.3).toString();
+        addBreathingBorder(rect, neonColor, binary.length > 24 ? 0.7 : (binary.length > 16 ? 1.0 : 1.3));
       } else {
-        // 为普通的1添加较弱的呼吸边框效果
-        addBreathingBorder(rect, color, binary.length > 24 ? 0.3 : (binary.length > 16 ? 0.5 : 0.7));
+        // 为普通的1添加深色呼吸边框效果
+        const neonColor = d3.rgb(color).darker(0.3).toString();
+        addBreathingBorder(rect, neonColor, binary.length > 24 ? 0.5 : (binary.length > 16 ? 0.7 : 0.9));
       }
       
       // 如果需要动画效果
@@ -124,9 +127,9 @@ export const renderBinaryRow = (
           .attr('transform', 'translate(0, 0)');
       }
     } else {
-      // 为0添加淡色的呼吸边框效果
-      const zeroColor = '#adb5bd';
-      addBreathingBorder(rect, zeroColor, binary.length > 24 ? 0.2 : (binary.length > 16 ? 0.3 : 0.4));
+      // 为0添加深色呼吸边框效果 - 使用更深的暗色调
+      const zeroNeonColor = '#1e2127'; // 深暗色调
+      addBreathingBorder(rect, zeroNeonColor, binary.length > 24 ? 0.3 : (binary.length > 16 ? 0.5 : 0.7));
       
       // 给0添加更微妙的光效和动画
       if (animate) {
@@ -140,7 +143,7 @@ export const renderBinaryRow = (
       }
     }
       
-    // 数字文本
+    // 数字文本 - 调整颜色使其更加明显
     const text = svg.append('text')
       .attr('x', x)
       .attr('y', y)
@@ -148,7 +151,7 @@ export const renderBinaryRow = (
       .attr('dominant-baseline', 'middle')
       .attr('font-size', `${fontSize}px`)
       .attr('font-weight', isOne ? 'bold' : 'normal')
-      .attr('fill', isOne ? 'white' : '#495057')
+      .attr('fill', isOne ? '#ffffff' : '#c0c4cc') // 0使用浅灰色而不是深灰色
       .text(digit);
     
     // 给数字添加动画效果，1和0都有动画，但样式不同
@@ -166,7 +169,7 @@ export const renderBinaryRow = (
           .transition()
           .delay(animationDelay)
           .duration(200)
-          .style('opacity', 0.8);
+          .style('opacity', 0.9); // 增加0的文字透明度
       }
     }
   }
