@@ -179,20 +179,47 @@ export const renderAllBinaryXorOperation = (
     }
   }
   
-  // 添加"Result:"标签 - 与结果行垂直对齐
-  svg
-    .append('text')
-    .attr('x', leftLabelWidth - 40) // 根据新的左侧宽度调整位置
-    .attr('y', resultCenterY) // 使用结果行的中心Y坐标
-    .attr('dominant-baseline', 'middle') // 确保垂直居中
-    .attr('text-anchor', 'end') // 水平右对齐
-    .attr('fill', '#40c057')
-    .text('Result:');
-  
   // 显示十进制结果值 - 与结果行垂直对齐
   if (showDecimal) {
     // 将数值放在与其他行数字相同的位置
-    renderNumberLabel(svg, numbers.reduce((acc, curr) => acc ^ curr, 0), startX - 10, resultCenterY, '#40c057', leftLabelWidth);
+    const resultValue = numbers.reduce((acc, curr) => acc ^ curr, 0);
+    const resultValueStr = resultValue.toString();
+    
+    // 根据数字长度估算文本宽度
+    let fontSize = 14; // 默认字体大小
+    if (resultValueStr.length > 8) {
+      fontSize = Math.max(14 - (resultValueStr.length - 8) * 0.5, 7);
+    }
+    
+    // 估算文本宽度 (每个数字约7px宽度，根据字体大小调整)
+    const estimatedTextWidth = resultValueStr.length * (fontSize * 0.6);
+    
+    // 动态计算Result标签位置，确保不会与数字重叠
+    const labelRightX = startX - 10;
+    const labelX = labelRightX - estimatedTextWidth - 20; // 额外添加20px间距
+    
+    // 添加"Result:"标签 - 与结果行垂直对齐并且避免与数字重叠
+    svg
+      .append('text')
+      .attr('x', labelX) // 动态计算标签位置
+      .attr('y', resultCenterY) // 使用结果行的中心Y坐标
+      .attr('dominant-baseline', 'middle') // 确保垂直居中
+      .attr('text-anchor', 'end') // 水平右对齐
+      .attr('fill', '#40c057')
+      .text('Result:');
+      
+    // 渲染结果数值
+    renderNumberLabel(svg, resultValue, startX - 10, resultCenterY, '#40c057', leftLabelWidth);
+  } else {
+    // 如果不显示十进制结果，仍然需要添加"Result:"标签
+    svg
+      .append('text')
+      .attr('x', leftLabelWidth - 40) // 固定位置
+      .attr('y', resultCenterY) // 使用结果行的中心Y坐标
+      .attr('dominant-baseline', 'middle') // 确保垂直居中
+      .attr('text-anchor', 'end') // 水平右对齐
+      .attr('fill', '#40c057')
+      .text('Result:');
   }
   
   // 渲染输入的二进制表示
