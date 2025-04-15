@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import SingleNumberControlledAnimation from './components/SingleNumberControlledAnimation'
 import SingleNumberVisualizer from './components/SingleNumberVisualizer'
+import LanguageSwitcher from './components/LanguageSwitcher'
 import './styles/theme.css'
 import './App.css'
 
 function App() {
+  const { t } = useTranslation();
   const [numbers, setNumbers] = useState<number[]>([]);
   const [inputValue, setInputValue] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'visualizer' | 'controlledAnimation'>('controlledAnimation');
@@ -74,10 +77,10 @@ function App() {
     
     // 首先检查数组长度
     if (validParts.length < 1) {
-      return '数组长度不能小于1';
+      return t('error.emptyArray');
     }
     if (validParts.length > 20) {
-      return '数组长度不能超过20，否则可视化效果不佳';
+      return t('error.tooLarge');
     }
     
     // 检查每个部分是否为有效数字
@@ -105,11 +108,11 @@ function App() {
     }
     
     if (invalidParts.length > 0) {
-      return `输入包含非法值: ${invalidParts.join(', ')}，请输入有效的整数`;
+      return t('error.invalidValues', { values: invalidParts.join(', ') });
     }
     
     if (outOfRangeParts.length > 0) {
-      return `数值超出范围: ${outOfRangeParts.join(', ')}，每个值必须在0和2^32之间`;
+      return t('error.outOfRange', { values: outOfRangeParts.join(', ') });
     }
     
     // 检查是否符合"一个元素出现一次，其他元素都出现两次"的条件
@@ -129,21 +132,26 @@ function App() {
       if (count === 1) {
         singleElements.push(num);
       } else if (count !== 2) {
-        invalidElements.push(`<strong>${num}</strong> (出现 ${count} 次)`);
+        invalidElements.push(`<strong>${num}</strong> (${t('出现')} ${count} ${t('次')})`);
       }
     }
     
     if (singleElements.length !== 1 || invalidElements.length > 0) {
-      let errorMsg = '输入不符合"一个元素出现一次，其他元素都出现两次"的条件：';
+      let errorMsg = t('error.invalidFormat');
       
       if (singleElements.length === 0) {
-        errorMsg += '没有只出现一次的元素';
+        errorMsg += t('error.noSingleElement');
       } else if (singleElements.length > 1) {
-        errorMsg += `有 ${singleElements.length} 个元素只出现一次：<strong>${singleElements.join('</strong>, <strong>')}</strong>`;
+        errorMsg += t('error.multipleSingleElements', { 
+          count: singleElements.length, 
+          elements: `<strong>${singleElements.join('</strong>, <strong>')}</strong>` 
+        });
       }
       
       if (invalidElements.length > 0) {
-        errorMsg += (singleElements.length !== 1 ? '，并且' : '') + `以下元素出现次数不是两次：${invalidElements.join(', ')}`;
+        errorMsg += (singleElements.length !== 1 ? '，' : '') + t('error.invalidOccurrences', { 
+          elements: invalidElements.join(', ') 
+        });
       }
       
       return errorMsg;
@@ -207,7 +215,7 @@ function App() {
             outline: 'none !important'
           }}
         >
-          LeetCode 136: 只出现一次的数字
+          {t('app.title')}
         </a>
         <a 
           href="https://github.com/fuck-algorithm/leetcode-136-single-number" 
@@ -215,35 +223,36 @@ function App() {
           rel="noopener noreferrer"
           className="github-button"
           aria-label="View source on GitHub"
-          title="查看源代码"
+          title={t('app.githubLink')}
           style={{ textDecoration: 'none', borderBottom: 'none' }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
             <path fill="rgba(0, 0, 0, 0.6)" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
           </svg>
         </a>
+        <LanguageSwitcher />
       </h1>
       <div className="input-section">
         <form onSubmit={handleSubmit}>
           <div className="input-wrapper">
-            <label htmlFor="numbers">输入数组（用逗号分隔）：</label>
+            <label htmlFor="numbers">{t('input.label')}</label>
             <input
               type="text"
               id="numbers"
               value={inputValue}
               onChange={handleInputChange}
-              placeholder="例如：4,1,2,1,2"
+              placeholder={t('input.placeholder')}
               className={error ? 'input-error' : ''}
             />
             <button 
               type="button" 
               className="random-button" 
               onClick={handleRandomClick}
-              title="随机生成数据"
+              title={t('input.randomButton')}
             >
               🎲
             </button>
-            <button type="submit" className="primary start-button">开始</button>
+            <button type="submit" className="primary start-button">{t('input.startButton')}</button>
           </div>
         </form>
         {error && (
@@ -259,13 +268,13 @@ function App() {
           className={activeTab === 'visualizer' ? 'tab-button active' : 'tab-button'}
           onClick={() => setActiveTab('visualizer')}
         >
-          题目描述
+          {t('tabs.description')}
         </button>
         <button 
           className={activeTab === 'controlledAnimation' ? 'tab-button active' : 'tab-button'}
           onClick={() => setActiveTab('controlledAnimation')}
         >
-          动画演示
+          {t('tabs.animation')}
         </button>
       </div>
 

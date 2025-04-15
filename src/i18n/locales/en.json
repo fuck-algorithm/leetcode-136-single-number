@@ -1,0 +1,91 @@
+{
+  "app": {
+    "title": "LeetCode 136: Single Number",
+    "githubLink": "View source code",
+    "moreProblems": "More problems"
+  },
+  "input": {
+    "label": "Input array (comma separated):",
+    "placeholder": "Example: 4,1,2,1,2",
+    "randomButton": "Generate random data",
+    "startButton": "Start"
+  },
+  "tabs": {
+    "description": "Problem Description",
+    "animation": "Animation Demo"
+  },
+  "error": {
+    "emptyArray": "Array length cannot be less than 1",
+    "tooLarge": "Array length cannot exceed 20 for better visualization",
+    "invalidValues": "Input contains invalid values: {{values}}, please enter valid integers",
+    "outOfRange": "Values out of range: {{values}}, each value must be between 0 and 2^32",
+    "invalidFormat": "Input does not follow the \"one element appears once, others appear twice\" condition:",
+    "noSingleElement": "No element appears only once",
+    "multipleSingleElements": "There are {{count}} elements that appear only once: {{elements}}",
+    "invalidOccurrences": "The following elements do not appear exactly twice: {{elements}}"
+  },
+  "visualizer": {
+    "problemTitle": "136. Single Number",
+    "difficulty": "Easy",
+    "description": "Given a non-empty array of integers nums, every element appears twice except for one. Find that single one.",
+    "constraint": "You must implement a solution with a linear runtime complexity and use only constant extra space.",
+    "examples": {
+      "title": "Examples",
+      "example1": {
+        "input": "Input: nums = [2,2,1]",
+        "output": "Output: 1"
+      },
+      "example2": {
+        "input": "Input: nums = [4,1,2,1,2]",
+        "output": "Output: 4"
+      },
+      "example3": {
+        "input": "Input: nums = [1]",
+        "output": "Output: 1"
+      }
+    },
+    "hints": {
+      "title": "Hints",
+      "hint1": "How can you use XOR operations to solve this problem?",
+      "hint2": "For any number, XOR with itself equals 0, i.e., a ⊕ a = 0",
+      "hint3": "Any number XOR with 0 equals the number itself, i.e., a ⊕ 0 = a"
+    },
+    "approach": {
+      "title": "Approach",
+      "description": "Using XOR operations effectively finds the element that appears only once. In XOR operations, identical numbers result in 0, and any number XOR with 0 remains the same. By performing XOR on all elements in the array, the final result is the number that appears only once."
+    },
+    "solution": {
+      "title": "Solution",
+      "code": "/**\n * @param {number[]} nums\n * @return {number}\n */\nvar singleNumber = function(nums) {\n    return nums.reduce((result, num) => result ^ num, 0);\n};"
+    },
+    "complexity": {
+      "title": "Complexity Analysis",
+      "time": "Time Complexity: O(n), where n is the length of the array. Only one pass through the array is needed.",
+      "space": "Space Complexity: O(1). Only constant extra space is used."
+    },
+    "relatedProblems": {
+      "title": "Related Problems",
+      "problems": [
+        "137. Single Number II",
+        "260. Single Number III"
+      ]
+    }
+  },
+  "animation": {
+    "loading": "Loading animation...",
+    "error": {
+      "message": "Render error: {{message}}",
+      "retry": "Retry",
+      "emptyArray": "Please enter numbers to start visualization",
+      "renderError": "Rendering error, please try refreshing the page"
+    },
+    "controls": {
+      "reset": "Reset",
+      "play": "Play",
+      "pause": "Pause",
+      "next": "Next",
+      "frame": "Frame: {{current}} / {{total}}"
+    },
+    "initialFrame": "Press \"Play\" to start visualization"
+  }
+} 

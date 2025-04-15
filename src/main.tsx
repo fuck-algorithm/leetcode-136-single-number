@@ -2,6 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
+// 导入i18n配置
+import './i18n/i18n'
 
 // 创建全局样式以移除所有链接下划线
 const style = document.createElement('style');
